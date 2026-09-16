@@ -1,3 +1,4 @@
+
 """
 IoT Network Anomaly Detection System — MN692 Capstone Project
 Client: APM (Advanced Personnel Management)
@@ -52,7 +53,7 @@ if "authenticated" not in st.session_state:
     st.session_state.username = None
 
 if not st.session_state.authenticated:
-    st.markdown("## 🛡️ PulseGuard -  AAPM Secure Login")
+    st.markdown("##🛡 ️ PulseGud dAAPM Secure Logn")
     st.markdown("<div style='color:#5A9FCC;font-size:13px;margin-bottom:20px;'>Role-based access — Admin / Analyst / Read-only</div>", unsafe_allow_html=True)
     with st.form("login_form"):
         username = st.text_input("Username")
@@ -491,7 +492,14 @@ if '📊 Overview Dashboard' in page:
     st.markdown("## 🛡️ IoT Network Anomaly Detection System")
     st.markdown("<div style='color:#5A9FCC;font-size:13px;margin-bottom:20px;'>Client: APM (Advanced Personnel Management) &nbsp;|&nbsp; MN692 Capstone Project &nbsp;|&nbsp; Supervisor: Ahmed Jawad Khan</div>", unsafe_allow_html=True)
 
-    if data_source == "IoT-23 Dataset (MN690)":
+    if "uploaded_results" in st.session_state:
+        df = st.session_state["uploaded_results"]
+        source_label = f"Uploaded file — {st.session_state['uploaded_filename']}"
+        if st.button("🔄 Clear uploaded data and return to default dataset"):
+            del st.session_state["uploaded_results"]
+            del st.session_state["uploaded_filename"]
+            st.rerun()
+    elif data_source == "IoT-23 Dataset (MN690)":
         df = load_iot23_results()
         source_label = "IoT-23 Dataset — 23 CSV files from Stratosphere Laboratory, CTU Prague"
     else:
@@ -739,6 +747,10 @@ elif '📤 Upload & Detect' in page:
     if st.button("🔍 Run Anomaly Detection", type="primary"):
         with st.spinner("Running models..."):
             results = score_uploaded_data(normalized_df.to_json())
+
+        st.session_state["uploaded_results"] = results
+        st.session_state["uploaded_filename"] = uploaded_file.name
+        st.success("✅ This dataset is now driving the Overview Dashboard too. Switch pages to see it.")
 
         n_total  = len(results)
         n_anom   = int(results['ensemble_pred'].sum())
