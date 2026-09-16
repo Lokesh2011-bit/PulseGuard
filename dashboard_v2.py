@@ -14,6 +14,7 @@ from plotly.subplots import make_subplots
 import joblib
 import time
 import os
+import base64
 import hashlib
 from datetime import datetime
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
@@ -30,18 +31,13 @@ st.set_page_config(
 )
 
 # ── ROLE-BASED ACCESS CONTROL (RBAC) ───────────────────────────────────────────
+# Credentials now come from .streamlit/secrets.toml, never hardcoded in source.
 USERS = {
-    "loki":  {"password": hashlib.sha256("loki123".encode()).hexdigest(),  "role": "Admin"},
-    "mani":  {"password": hashlib.sha256("mani123".encode()).hexdigest(),  "role": "Analyst"},
-    "jawad": {"password": hashlib.sha256("apm2026".encode()).hexdigest(), "role": "Read-only"},
-}
-
-ROLE_PAGES = {
-    "Admin":     ["📊 Overview Dashboard", "🔴 Live Simulation Feed", "🧠 Model Comparison",
-                  "📋 Device Baselines", "📄 Compliance Report"],
-    "Analyst":   ["📊 Overview Dashboard", "🔴 Live Simulation Feed", "🧠 Model Comparison",
-                  "📋 Device Baselines"],
-    "Read-only": ["📊 Overview Dashboard", "📋 Device Baselines"],
+    username: {
+        "password": hashlib.sha256(info["password"].encode()).hexdigest(),
+        "role": info["role"],
+    }
+    for username, info in st.secrets["users"].items()
 }
 
 def check_login(username, password):
@@ -105,8 +101,9 @@ hr { border-color: #1A3A5C !important; }
     box-shadow: 0 0 10px rgba(0,150,255,0.06);
 }
 .info-label {
-    font-size: 10px; font-weight: 700; color: #5A9FCC;
+    font-size: 10px; font-weight: 700; color: #8FC4EC;
     text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
 }
 .info-value { font-size: 13px; color: #B0D4F0; }
 .badge-red    { background:#C0392B; color:#fff; padding:2px 9px; border-radius:12px; font-size:11px; font-weight:700; }
@@ -115,8 +112,56 @@ hr { border-color: #1A3A5C !important; }
 .badge-blue   { background:#2563EB; color:#fff; padding:2px 9px; border-radius:12px; font-size:11px; font-weight:700; }
 .pulse { animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{ opacity:1 } 50%{ opacity:0.5 } }
+
+/* ── Live "pulse" EKG widget (sidebar) ────────────────────────────────── */
+.ekg-wrap { overflow:hidden; width:100%; height:34px; margin:2px 0 4px; }
+.ekg-line { width:200%; height:34px; animation: ekg-scroll 3.2s linear infinite; }
+@keyframes ekg-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.live-badge { display:flex; align-items:center; gap:6px; margin-bottom:10px; }
+.live-badge-label { font-size:10px; color:#7BA8CC; letter-spacing:0.08em; text-transform:uppercase; }
+
+/* ── Top navigation bar buttons ───────────────────────────────────────── */
+div[data-testid="column"] button[kind="primary"]{
+    background: linear-gradient(135deg, #00D4AA, #00A67E) !important;
+    color:#04140F !important; border:none !important; font-weight:600 !important;
+}
+div[data-testid="column"] button[kind="secondary"]{
+    background:transparent !important; color:#7BA8CC !important;
+    border:1px solid transparent !important;
+}
+div[data-testid="column"] button[kind="secondary"]:hover{ color:#D0E4F7 !important; }
 </style>
 """, unsafe_allow_html=True)
+
+# ── BACKGROUND IMAGE (with dark overlay so text/charts stay fully legible) ────
+@st.cache_data
+def _get_base64_of_bin_file(bin_file):
+    with open(bin_file, 'rb') as f:
+        return base64.b64encode(f.read()).decode()
+
+def set_background(image_path):
+    """Sets a page background image behind a dark overlay gradient,
+    so it reads as texture rather than competing with the dashboard's
+    text, cards, or charts. Silently no-ops if the file isn't found."""
+    try:
+        b64 = _get_base64_of_bin_file(image_path)
+        ext = image_path.split('.')[-1]
+        st.markdown(f"""
+        <style>
+        .stApp {{
+            background-image:
+                linear-gradient(rgba(6,13,31,0.75), rgba(6,13,31,0.85)),
+                url("data:image/{ext};base64,{b64}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }}
+        </style>
+        """, unsafe_allow_html=True)
+    except FileNotFoundError:
+        pass
+
+set_background("assets/dashboard_bg.webp")
 
 # ── CONSTANTS ─────────────────────────────────────────────────────────────────
 FEATURES_IOT23   = ['duration', 'orig_bytes', 'resp_bytes', 'proto', 'conn_state']
@@ -139,37 +184,6 @@ TOOLTIP = {
     'rf_pred':           'ℹ️ Random Forest Prediction: Supervised ML output (1=Malicious, 0=Benign)',
     'label':             'ℹ️ Label: Ground truth traffic classification from IoT-23 dataset',
 }
-
-# ── SIDEBAR ───────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### 🛡️ IoT Sentinel")
-    st.markdown("<div style='font-size:11px;color:#5A9FCC;'>APM Anomaly Detection System</div>", unsafe_allow_html=True)
-    st.markdown("---")
-
-    role_badge = {"Admin": "🔴", "Analyst": "🟡", "Read-only": "🟢"}.get(st.session_state.role, "")
-    st.markdown(f"**Logged in as:** {st.session_state.username}  \n{role_badge} `{st.session_state.role}`")
-    if st.button("🚪 Log Out"):
-        st.session_state.authenticated = False
-        st.session_state.role = None
-        st.session_state.username = None
-        st.rerun()
-
-    st.markdown("---")
-
-    page = st.radio("Navigation", ROLE_PAGES[st.session_state.role])
-
-    st.markdown("---")
-    st.markdown("<div class='info-label'>Data Source</div>", unsafe_allow_html=True)
-    data_source = st.selectbox("Select Data Source", ["IoT-23 Dataset (MN690)", "Live Simulation Capture (MN692)"])
-
-    st.markdown("---")
-    st.markdown("<div class='info-label'>System Status</div>", unsafe_allow_html=True)
-    st.markdown("<span style='color:#00D4AA'>● Models Loaded</span>", unsafe_allow_html=True)
-    st.markdown("<span style='color:#00D4AA'>● Pipeline Active</span>", unsafe_allow_html=True)
-    st.markdown(f"<span style='color:#7BA8CC;font-size:10px;'>Last updated: {datetime.now().strftime('%d %b %Y %H:%M')}</span>", unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.markdown("<div style='font-size:10px;color:#3A6A9C;'>MN692 Capstone | Client: APM<br>Supervisor: Ahmed Jawad Khan<br>Team: Loki · Mani · Navoda · Naveen · Kishore</div>", unsafe_allow_html=True)
 
 # ── DATA LOADING ──────────────────────────────────────────────────────────────
 @st.cache_data
@@ -246,10 +260,211 @@ def score_live_data(df_hash):
     else:
         results['lof_pred'] = results['iso_pred']
 
-    # RF/XGBoost were trained on IoT-23 features (duration, orig_bytes, etc.)
-    # which do not exist in live_capture.csv, so they cannot score this data directly.
     results['rf_pred']  = results['iso_pred']
     results['xgb_pred'] = results['iso_pred']
+
+    results['ensemble_pred'] = ((results['iso_pred'] == 1) | (results['lof_pred'] == 1)).astype(int)
+    results['label'] = results['ensemble_pred'].map({1: 'Malicious', 0: 'Benign'})
+    return results
+
+# ── SIDEBAR ───────────────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("### 🛡️ PulseGuard")
+    st.markdown("<div style='font-size:11px;color:#5A9FCC;'>Real-time IoT Threat Pulse Monitoring — APM</div>", unsafe_allow_html=True)
+    st.markdown("---")
+
+    role_badge = {"Admin": "🔴", "Analyst": "🟡", "Read-only": "🟢"}.get(st.session_state.role, "")
+    st.markdown(f"**Logged in as:** {st.session_state.username}  \n{role_badge} `{st.session_state.role}`")
+    if st.button("🚪 Log Out"):
+        st.session_state.authenticated = False
+        st.session_state.role = None
+        st.session_state.username = None
+        st.rerun()
+
+    st.markdown("---")
+
+    ROLE_PAGES = {
+        "Admin":     ["📊 Overview Dashboard", "📤 Upload & Detect", "🔴 Live Simulation Feed", "🧠 Model Comparison",
+                      "📋 Device Baselines", "📄 Compliance Report"],
+        "Analyst":   ["📊 Overview Dashboard", "📤 Upload & Detect", "🔴 Live Simulation Feed", "🧠 Model Comparison",
+                      "📋 Device Baselines"],
+        "Read-only": ["📊 Overview Dashboard", "📋 Device Baselines"],
+    }
+
+    st.markdown("<div class='info-label'>Data Source</div>", unsafe_allow_html=True)
+    data_source = st.selectbox("Select Data Source", ["IoT-23 Dataset (MN690)", "Live Simulation Capture (MN692)"])
+
+    st.markdown("---")
+    st.markdown("<div class='info-label'>System Status</div>", unsafe_allow_html=True)
+    st.markdown("<span style='color:#00D4AA'>● Models Loaded</span>", unsafe_allow_html=True)
+    st.markdown("<span style='color:#00D4AA'>● Pipeline Active</span>", unsafe_allow_html=True)
+    st.markdown(f"<span style='color:#7BA8CC;font-size:10px;'>Last updated: {datetime.now().strftime('%d %b %Y %H:%M')}</span>", unsafe_allow_html=True)
+
+    if data_source == "IoT-23 Dataset (MN690)":
+        _pulse_df = load_iot23_results()
+    else:
+        _pulse_df = score_live_data(hash("live"))
+
+    if _pulse_df is not None and 'ensemble_pred' in _pulse_df.columns and len(_pulse_df) > 0:
+        _total = len(_pulse_df)
+        _anom  = int(_pulse_df['ensemble_pred'].sum())
+        _rate  = _anom / _total * 100
+    else:
+        _rate = None
+
+    if _rate is None:
+        _pulse_color, _pulse_status, _pulse_speed = "#7BA8CC", "No data loaded", 4.0
+    elif _rate < 30:
+        _pulse_color, _pulse_status, _pulse_speed = "#00D4AA", "Nominal", 3.2
+    elif _rate < 60:
+        _pulse_color, _pulse_status, _pulse_speed = "#F59E0B", "Elevated", 2.2
+    else:
+        _pulse_color, _pulse_status, _pulse_speed = "#FF4C6A", "Critical", 1.3
+
+    _rate_text = f"{_rate:.1f}% alert rate" if _rate is not None else "awaiting data"
+
+    st.markdown(f"""
+    <div class="ekg-wrap">
+        <svg class="ekg-line" viewBox="0 0 600 40" preserveAspectRatio="none"
+             xmlns="http://www.w3.org/2000/svg" style="animation-duration:{_pulse_speed}s;">
+            <path d="M0,20 L150,20 L165,4 L180,36 L195,20 L600,20"
+                  stroke="{_pulse_color}" stroke-width="2" fill="none"
+                  stroke-linejoin="round" stroke-linecap="round"/>
+            <path d="M0,20 L150,20 L165,4 L180,36 L195,20 L600,20"
+                  stroke="{_pulse_color}" stroke-width="2" fill="none"
+                  stroke-linejoin="round" stroke-linecap="round" transform="translate(600,0)"/>
+        </svg>
+    </div>
+    <div class="live-badge">
+        <span class="pulse" style="color:{_pulse_color};font-size:12px;">●</span>
+        <span class="live-badge-label" style="color:{_pulse_color};">{_pulse_status} — {_rate_text}</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown("<div style='font-size:10px;color:#3A6A9C;'>MN692 Capstone | Client: APM<br>Supervisor: Ahmed Jawad Khan<br>Team: Loki · Mani · Navoda · Naveen · Kishore</div>", unsafe_allow_html=True)
+
+# ── TOP NAVIGATION BAR ─────────────────────────────────────────────────────
+if "current_page" not in st.session_state:
+    st.session_state.current_page = ROLE_PAGES[st.session_state.role][0]
+
+nav_items = ROLE_PAGES[st.session_state.role]
+nav_cols = st.columns([1.4] + [1]*len(nav_items))
+with nav_cols[0]:
+    st.markdown("#### 🛡️ PulseGuard")
+for i, item in enumerate(nav_items):
+    with nav_cols[i+1]:
+        is_active = st.session_state.current_page == item
+        if st.button(item, key=f"nav_{item}",
+                     type="primary" if is_active else "secondary",
+                     use_container_width=True):
+            st.session_state.current_page = item
+            st.rerun()
+
+page = st.session_state.current_page
+st.markdown("---")
+
+# ── UPLOAD & DETECT: format normalization ──────────────────────────────────────
+def bucket_argus_state(code):
+    """Maps CTU-13's Argus connection-state codes into the same
+    Established / Rejected / Other buckets used elsewhere in the app."""
+    if pd.isna(code):
+        return "Other"
+    code = str(code)
+    named_other = {"ECO","ECR","REQ","RSP","RED","INT","DCE","DNP","MRQ",
+                   "NNS","NRS","TXD","UNK","SEC","SRC","URF","URFIL","URH",
+                   "URHPRO","URN","URNPRO","URO","URP"}
+    if code in named_other:
+        return "Other"
+    if code == "CON":
+        return "Established"
+    if "R" in code:
+        return "Rejected"
+    if "_" in code:
+        left, right = code.split("_", 1)
+        if "F" in left and "F" in right:
+            return "Established"
+    return "Other"
+
+
+def detect_and_normalize(df):
+    """
+    Detects whether an uploaded dataframe is IoT-23 or CTU-13 format,
+    and returns (normalized_df, format_name).
+    """
+    cols = set(df.columns)
+
+    if {'duration', 'orig_bytes', 'resp_bytes', 'proto', 'conn_state'}.issubset(cols):
+        return df[['duration', 'orig_bytes', 'resp_bytes', 'proto', 'conn_state']].copy(), "IoT-23"
+
+    if {'dur', 'proto', 'state', 'src_bytes', 'tot_bytes'}.issubset(cols):
+        out = pd.DataFrame()
+        out['duration']   = df['dur']
+        out['orig_bytes'] = df['src_bytes']
+        out['resp_bytes'] = df['tot_bytes'] - df['src_bytes']
+        out['proto']      = df['proto']
+        out['conn_state'] = df['state'].apply(bucket_argus_state)
+        return out, "CTU-13"
+
+    return None, None
+
+
+@st.cache_data
+def score_uploaded_data(df_normalized_json):
+    """
+    Runs the trained models on an uploaded, normalized dataframe.
+    NOTE — ENCODING ASSUMPTION: this mapping is still unverified against
+    the actual training encoding for RF/XGBoost. Treat RF/XGBoost
+    predictions on uploaded files as provisional until confirmed.
+    """
+    df = pd.read_json(df_normalized_json)
+    models = load_models()
+
+    proto_map = {'tcp': 6, 'udp': 17, 'icmp': 1}
+    df['proto_enc'] = df['proto'].astype(str).str.lower().map(proto_map).fillna(-1)
+
+    if df['conn_state'].dtype == object:
+        state_map = {'Established': 0, 'Rejected': 1, 'Other': 2}
+        df['conn_state_enc'] = df['conn_state'].map(state_map).fillna(2)
+    else:
+        df['conn_state_enc'] = df['conn_state']
+
+    features = ['duration', 'orig_bytes', 'resp_bytes', 'proto_enc', 'conn_state_enc']
+    X = df[features].values
+    results = df.copy()
+
+    if models.get('Isolation Forest'):
+        iso_pred = models['Isolation Forest'].predict(X)
+        results['iso_pred'] = [1 if p == -1 else 0 for p in iso_pred]
+        results['anomaly_score'] = models['Isolation Forest'].score_samples(X)
+    else:
+        results['iso_pred'] = 0
+        results['anomaly_score'] = -0.5
+
+    if models.get('LOF'):
+        try:
+            lof_pred = models['LOF'].predict(X)
+            results['lof_pred'] = [1 if p == -1 else 0 for p in lof_pred]
+        except Exception:
+            results['lof_pred'] = results['iso_pred']
+    else:
+        results['lof_pred'] = results['iso_pred']
+
+    if models.get('Random Forest'):
+        try:
+            results['rf_pred'] = models['Random Forest'].predict(X)
+        except Exception:
+            results['rf_pred'] = results['iso_pred']
+    else:
+        results['rf_pred'] = results['iso_pred']
+
+    if models.get('XGBoost'):
+        try:
+            results['xgb_pred'] = models['XGBoost'].predict(X)
+        except Exception:
+            results['xgb_pred'] = results['iso_pred']
+    else:
+        results['xgb_pred'] = results['iso_pred']
 
     results['ensemble_pred'] = ((results['iso_pred'] == 1) | (results['lof_pred'] == 1)).astype(int)
     results['label'] = results['ensemble_pred'].map({1: 'Malicious', 0: 'Benign'})
@@ -258,7 +473,7 @@ def score_live_data(df_hash):
 # ── PLOTLY THEME ─────────────────────────────────────────────────────────────
 PLOT_LAYOUT = dict(
     paper_bgcolor='rgba(0,0,0,0)',
-    plot_bgcolor='rgba(13,33,55,0.5)',
+    plot_bgcolor='rgba(13,33,55,0.92)',
     font=dict(color='#B0D4F0', size=11),
     margin=dict(t=30, b=30, l=30, r=30),
     legend=dict(bgcolor='rgba(0,0,0,0)', font=dict(color='#B0D4F0')),
@@ -468,7 +683,106 @@ if '📊 Overview Dashboard' in page:
         st.info("🔒 Downloading reports requires Analyst or Admin access.")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE 2 — LIVE SIMULATION FEED
+# PAGE 2 — UPLOAD & DETECT
+# ══════════════════════════════════════════════════════════════════════════════
+elif '📤 Upload & Detect' in page:
+    st.markdown("## 📤 Upload & Detect")
+    st.markdown("<div style='color:#5A9FCC;font-size:13px;'>Upload a network flow capture (IoT-23 or CTU-13 format) for on-demand anomaly detection</div>", unsafe_allow_html=True)
+    st.markdown("---")
+
+    st.caption("Supported formats: **IoT-23** and **CTU-13** (CSV or Parquet)")
+    uploaded_file = st.file_uploader(
+        "Choose a file",
+        type=["csv", "parquet"],
+        help="Upload an IoT-23 or CTU-13 formatted network flow file"
+    )
+
+    if uploaded_file is None:
+        st.info("No file uploaded yet. Select a CSV or Parquet file above to begin.")
+        st.stop()
+
+    try:
+        if uploaded_file.name.endswith(".csv"):
+            raw_df = pd.read_csv(uploaded_file)
+        else:
+            raw_df = pd.read_parquet(uploaded_file)
+    except Exception as e:
+        st.error(f"Could not read the file: {e}")
+        st.stop()
+
+    with st.spinner("Detecting format..."):
+        normalized_df, detected_as = detect_and_normalize(raw_df)
+
+    if normalized_df is None:
+        st.error("⚠️ Unrecognized format — please upload a file matching the IoT-23 or CTU-13 schema.")
+        with st.expander("What columns are expected?"):
+            st.markdown("""
+            - **IoT-23**: `duration`, `orig_bytes`, `resp_bytes`, `proto`, `conn_state`
+            - **CTU-13**: `dur`, `proto`, `state`, `src_bytes`, `tot_bytes`
+            """)
+        st.stop()
+
+    st.success(f"✅ Format detected: **{detected_as}**  &nbsp;|&nbsp;  {len(normalized_df):,} rows")
+
+    if detected_as == "CTU-13":
+        st.caption(
+            "Note: connection states were mapped from Argus format "
+            "(e.g. `S_RA`, `CON`) into `Established` / `Rejected` / `Other` "
+            "to match the standard schema."
+        )
+
+    with st.expander(f"Preview normalized data ({normalized_df.shape[0]:,} rows)"):
+        st.dataframe(normalized_df.head(20), use_container_width=True)
+
+    st.markdown("---")
+
+    if st.button("🔍 Run Anomaly Detection", type="primary"):
+        with st.spinner("Running models..."):
+            results = score_uploaded_data(normalized_df.to_json())
+
+        n_total  = len(results)
+        n_anom   = int(results['ensemble_pred'].sum())
+        n_normal = n_total - n_anom
+        rate     = n_anom / n_total * 100 if n_total else 0
+
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("🔍 Total Flows", f"{n_total:,}")
+        c2.metric("🚨 Anomalies", f"{n_anom:,}", delta=f"{rate:.1f}% alert rate", delta_color="inverse")
+        c3.metric("✅ Normal Flows", f"{n_normal:,}")
+        avg_score = results[results['ensemble_pred']==1]['anomaly_score'].mean() if n_anom else None
+        c4.metric("⚡ Avg Anomaly Score", f"{avg_score:.3f}" if avg_score is not None else "N/A")
+
+        st.markdown("---")
+        st.markdown("#### 📊 Result Breakdown")
+        counts = results['label'].value_counts()
+        fig_pie = px.pie(
+            values=counts.values, names=counts.index,
+            color=counts.index,
+            color_discrete_map={'Malicious': COL_MAL, 'Benign': COL_BEN},
+            hole=0.4
+        )
+        fig_pie.update_layout(**PLOT_LAYOUT)
+        fig_pie.update_traces(textfont_color='white', textfont_size=12)
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+        st.markdown("#### 🔴 Detected Anomalies")
+        show_cols = ['duration', 'orig_bytes', 'resp_bytes', 'proto', 'conn_state', 'label', 'anomaly_score']
+        show_cols = [c for c in show_cols if c in results.columns]
+        anom_df = results[results['ensemble_pred'] == 1][show_cols].sort_values('anomaly_score').head(50)
+        st.dataframe(anom_df, use_container_width=True, height=320)
+
+        if st.session_state.role in ("Admin", "Analyst"):
+            st.download_button(
+                label="📄 Download Results (CSV)",
+                data=results[show_cols].to_csv(index=False).encode('utf-8'),
+                file_name=f"APM_Upload_Analysis_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("🔒 Downloading results requires Analyst or Admin access.")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 3 — LIVE SIMULATION FEED
 # ══════════════════════════════════════════════════════════════════════════════
 elif '🔴 Live Simulation Feed' in page:
     st.markdown("## 🔴 Live Attack Simulation Feed")
@@ -568,7 +882,7 @@ tshark -r simulation_capture.pcap -T fields \\
     st.dataframe(anom_live.rename(columns=rename_map_live), use_container_width=True, height=300)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE 3 — MODEL COMPARISON
+# PAGE 4 — MODEL COMPARISON
 # ══════════════════════════════════════════════════════════════════════════════
 elif '🧠 Model Comparison' in page:
     st.markdown("## 🧠 ML Model Comparison — MN692")
@@ -680,7 +994,7 @@ EOF
         """, language='bash')
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE 4 — DEVICE BASELINES
+# PAGE 5 — DEVICE BASELINES
 # ══════════════════════════════════════════════════════════════════════════════
 elif '📋 Device Baselines' in page:
     st.markdown("## 📋 IoT Device Baseline Profiles")
@@ -764,7 +1078,7 @@ elif '📋 Device Baselines' in page:
         st.markdown(f"<div style='background:#1A0A0A;border:1px solid #5A1A2A;border-radius:8px;padding:10px 16px;margin:8px 0 20px;font-size:12px;color:#FF8A99;'><b>⚠️ Threat: </b>{dev['threat']}</div>", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE 5 — COMPLIANCE REPORT
+# PAGE 6 — COMPLIANCE REPORT
 # ══════════════════════════════════════════════════════════════════════════════
 elif '📄 Compliance Report' in page:
     if st.session_state.role != "Admin":
