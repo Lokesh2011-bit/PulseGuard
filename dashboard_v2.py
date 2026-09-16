@@ -52,7 +52,7 @@ if "authenticated" not in st.session_state:
     st.session_state.username = None
 
 if not st.session_state.authenticated:
-    st.markdown("## 🛡️ IoT Sentinel — APM Secure Login")
+    st.markdown("## 🛡️ PulseGuarde   AAPM Secure Login")
     st.markdown("<div style='color:#5A9FCC;font-size:13px;margin-bottom:20px;'>Role-based access — Admin / Analyst / Read-only</div>", unsafe_allow_html=True)
     with st.form("login_form"):
         username = st.text_input("Username")
