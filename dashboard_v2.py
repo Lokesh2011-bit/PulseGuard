@@ -92,10 +92,15 @@ if not st.session_state.authenticated:
             margin-bottom: 20px;
         }
         .pg-login-rule {
-            border: none;
-            border-top: 1px solid #2A2F3A;
-            margin: 8px auto 40px auto;
-            width: 400px;
+            border: none !important;
+            border-top: 1px solid #2A2F3A !important;
+            display: block !important;
+            width: 400px !important;
+            max-width: 400px !important;
+            margin: 24px auto 32px auto !important;
+            padding: 0 !important;
+            background: transparent !important;
+            box-sizing: border-box !important;
         }
         /* Role hint below the form */
         .pg-login-hint {
@@ -116,7 +121,7 @@ if not st.session_state.authenticated:
     # Centered logo
     _lc1, _lc2, _lc3 = st.columns([1, 0.25, 1])
     with _lc2:
-        st.image('assets/pulseguard_logo.png', use_container_width=True)
+        st.image('assets/pulseguard_logo.png', width='stretch')
 
     # Centered brand text + rule
     st.markdown(
@@ -494,7 +499,7 @@ for i, item in enumerate(nav_items):
         is_active = st.session_state.current_page == item
         if st.button(item, key=f"nav_{item}",
                      type="primary" if is_active else "secondary",
-                     use_container_width=True):
+                     width='stretch'):
             st.session_state.current_page = item
             st.rerun()
 
@@ -775,7 +780,7 @@ if 'Overview Dashboard' in page:
         )
         fig_pie.update_layout(**PLOT_LAYOUT)
         fig_pie.update_traces(textfont_color='white', textfont_size=12)
-        st.plotly_chart(fig_pie, use_container_width=True)
+        st.plotly_chart(fig_pie, width='stretch')
 
     with c2:
         st.markdown("#### Anomaly Score Distribution")
@@ -790,7 +795,7 @@ if 'Overview Dashboard' in page:
             )
             fig_hist.update_layout(**PLOT_LAYOUT)
             fig_hist.update_layout(xaxis_title="Anomaly Score ℹ️ (lower = more suspicious)")
-            st.plotly_chart(fig_hist, use_container_width=True)
+            st.plotly_chart(fig_hist, width='stretch')
         else:
             st.info("Anomaly scores not available for this data source")
 
@@ -809,7 +814,7 @@ if 'Overview Dashboard' in page:
             )
             fig_proto.update_layout(**PLOT_LAYOUT)
             fig_proto.update_layout(coloraxis_showscale=False)
-            st.plotly_chart(fig_proto, use_container_width=True)
+            st.plotly_chart(fig_proto, width='stretch')
 
     st.markdown("---")
 
@@ -832,7 +837,7 @@ if 'Overview Dashboard' in page:
         fig_line.update_layout(**PLOT_LAYOUT,
                                xaxis_title="Time (seconds) ℹ️ — relative to capture start",
                                yaxis_title="Anomaly Score ℹ️")
-        st.plotly_chart(fig_line, use_container_width=True)
+        st.plotly_chart(fig_line, width='stretch')
     elif 'anomaly_score' in df.columns:
         df_sample = df[['anomaly_score', 'ensemble_pred']].copy()
         df_sample['flow_index'] = range(len(df_sample))
@@ -851,7 +856,7 @@ if 'Overview Dashboard' in page:
         fig_line.update_layout(**PLOT_LAYOUT,
                                xaxis_title="Flow Index ℹ️ (sequential packet order)",
                                yaxis_title="Anomaly Score ℹ️")
-        st.plotly_chart(fig_line, use_container_width=True)
+        st.plotly_chart(fig_line, width='stretch')
 
     st.markdown("---")
 
@@ -889,7 +894,7 @@ if 'Overview Dashboard' in page:
         'anomaly_score': 'ANOMALY SCORE ⓘ',
         'Severity':      'SEVERITY ⓘ',
     }
-    st.dataframe(anom_df.rename(columns=rename_map), use_container_width=True, height=320)
+    st.dataframe(anom_df.rename(columns=rename_map), width='stretch', height=320)
 
     with st.expander("ⓘ Click here to see what each column means"):
         col1, col2 = st.columns(2)
@@ -966,7 +971,7 @@ elif 'Upload & Detect' in page:
         )
 
     with st.expander(f"Preview normalized data ({normalized_df.shape[0]:,} rows)"):
-        st.dataframe(normalized_df.head(20), use_container_width=True)
+        st.dataframe(normalized_df.head(20), width='stretch')
 
     st.markdown("---")
 
@@ -1002,13 +1007,13 @@ elif 'Upload & Detect' in page:
         )
         fig_pie.update_layout(**PLOT_LAYOUT)
         fig_pie.update_traces(textfont_color='white', textfont_size=12)
-        st.plotly_chart(fig_pie, use_container_width=True)
+        st.plotly_chart(fig_pie, width='stretch')
 
         st.markdown("#### Detected Anomalies")
         show_cols = ['duration', 'orig_bytes', 'resp_bytes', 'proto', 'conn_state', 'label', 'anomaly_score']
         show_cols = [c for c in show_cols if c in results.columns]
         anom_df = results[results['ensemble_pred'] == 1][show_cols].sort_values('anomaly_score').head(50)
-        st.dataframe(anom_df, use_container_width=True, height=320)
+        st.dataframe(anom_df, width='stretch', height=320)
 
         if st.session_state.role in ("Admin", "Analyst"):
             st.download_button(
@@ -1090,7 +1095,7 @@ elif 'Model Comparison' in page:
         'Status':             ['Deployed', 'Deployed', rf_status, xgb_status],
     }
     df_cmp = pd.DataFrame(comparison_data)
-    st.dataframe(df_cmp, use_container_width=True, hide_index=True)
+    st.dataframe(df_cmp, width='stretch', hide_index=True)
 
     st.markdown("---")
 
@@ -1148,7 +1153,7 @@ elif 'Model Comparison' in page:
                 yaxis_range=[0, 105],
                 showlegend=False,
             )
-            st.plotly_chart(_fig, use_container_width=True)
+            st.plotly_chart(_fig, width='stretch')
 
             st.markdown(
                 f"<div style='color:#5B6270;font-size:11px;font-family:IBM Plex Mono,monospace;margin-top:6px;'>"
@@ -1307,7 +1312,7 @@ elif 'Compliance Report' in page:
         report_cols = ['incident_id', 'anomaly_score', 'severity', 'ndb_notifiable', 'recommended_action']
         if 'label' in anom_comp.columns: report_cols.insert(1, 'label')
         report_cols = [c for c in report_cols if c in anom_comp.columns]
-        st.dataframe(anom_comp[report_cols].head(25), use_container_width=True, height=300)
+        st.dataframe(anom_comp[report_cols].head(25), width='stretch', height=300)
 
         csv_report = anom_comp[report_cols].to_csv(index=False).encode('utf-8')
         st.download_button(
