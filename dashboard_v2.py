@@ -429,6 +429,9 @@ def score_uploaded_data(df):
     else:
         df['conn_state_enc'] = df['conn_state']
 
+    for _col in ['duration', 'orig_bytes', 'resp_bytes']:
+        df[_col] = pd.to_numeric(df[_col], errors='coerce').fillna(0)
+
     features = ['duration', 'orig_bytes', 'resp_bytes', 'proto_enc', 'conn_state_enc']
     X = df[features].values
     results = df.copy()
