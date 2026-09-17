@@ -265,7 +265,7 @@ def score_live_data(df_hash):
     results['rf_pred']  = results['iso_pred']
     results['xgb_pred'] = results['iso_pred']
 
-    results['ensemble_pred'] = ((results['iso_pred'] == 1) | (results['lof_pred'] == 1)).astype(int)
+    results['ensemble_pred'] = ((results['iso_pred'] + results['lof_pred'] + results['rf_pred']) >= 2).astype(int)
     results['label'] = results['ensemble_pred'].map({1: 'Malicious', 0: 'Benign'})
     return results
 
@@ -286,9 +286,9 @@ with st.sidebar:
     st.markdown("---")
 
     ROLE_PAGES = {
-        "Admin":     ["📊 Overview Dashboard", "📤 Upload & Detect", "🔴 Live Simulation Feed", "🧠 Model Comparison",
+        "Admin":     ["📊 Overview Dashboard", "📤 Upload & Detect", "🧠 Model Comparison",
                       "📋 Device Baselines", "📄 Compliance Report"],
-        "Analyst":   ["📊 Overview Dashboard", "📤 Upload & Detect", "🔴 Live Simulation Feed", "🧠 Model Comparison",
+        "Analyst":   ["📊 Overview Dashboard", "📤 Upload & Detect", "🧠 Model Comparison",
                       "📋 Device Baselines"],
         "Read-only": ["📊 Overview Dashboard", "📋 Device Baselines"],
     }
@@ -477,7 +477,7 @@ def score_uploaded_data(df):
     else:
         results['xgb_pred'] = results['iso_pred']
 
-    results['ensemble_pred'] = ((results['iso_pred'] == 1) | (results['lof_pred'] == 1)).astype(int)
+    results['ensemble_pred'] = ((results['iso_pred'] + results['lof_pred'] + results['rf_pred']) >= 2).astype(int)
     results['label'] = results['ensemble_pred'].map({1: 'Malicious', 0: 'Benign'})
     return results
 
