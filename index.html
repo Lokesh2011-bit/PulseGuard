@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PulseGuard — IoT Network Anomaly Detection</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:        #0E1015;
+    --surface:   #15181F;
+    --surface-2: #1B1F28;
+    --line:      #2A2F3A;
+    --text:      #E9EBEF;
+    --text-mute: #8B93A1;
+    --text-dim:  #5B6270;
+    --signal:    #FF6B35;
+    --signal-dim:#8A3D1F;
+    --calm:      #3ECF8E;
+    --max-w:     1180px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  a{text-decoration:none;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans', sans-serif;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:var(--max-w); margin:0 auto; padding:0 32px;}
+  h1,h2,h3{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    letter-spacing:-0.01em;
+    color:var(--text);
+  }
+  a{color:inherit;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+
+  /* ===== NAV ===== */
+  nav{
+    position:sticky; top:0; z-index:20;
+    background:rgba(14,16,21,0.86);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  nav .wrap{
+    display:flex; align-items:center; justify-content:space-between;
+    height:64px;
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600; font-size:17px;
+  }
+  .brand .dot{
+    width:9px; height:9px; border-radius:50%;
+    background:var(--signal);
+    box-shadow:0 0 0 4px rgba(255,107,53,0.16);
+  }
+  .nav-links{display:flex; gap:28px; font-size:14px; color:var(--text-mute);}
+  .nav-links a:hover{color:var(--text);}
+  .nav-cta{
+    font-size:13px; padding:9px 16px;
+    border:1px solid var(--line);
+    color:var(--text);
+    transition:border-color .15s;
+  }
+  .nav-cta:hover{border-color:var(--signal);}
+
+  /* ===== HERO ===== */
+  .hero{
+    padding:96px 0 88px;
+    border-bottom:1px solid var(--line);
+  }
+  .hero .wrap{
+    display:grid;
+    grid-template-columns:1.05fr 0.95fr;
+    gap:64px;
+    align-items:center;
+  }
+  .hero-tag{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px; color:var(--text-mute);
+    border:1px solid var(--line);
+    padding:6px 12px;
+    margin-bottom:28px;
+  }
+  .hero-tag .dot{width:6px; height:6px; border-radius:50%; background:var(--calm);}
+  .hero h1{
+    font-size:clamp(34px, 4.4vw, 52px);
+    line-height:1.08;
+    margin-bottom:22px;
+  }
+  .hero h1 .accent{color:var(--signal);}
+  .hero p.sub{
+    font-size:17px;
+    color:var(--text-mute);
+    max-width:480px;
+    margin-bottom:36px;
+  }
+  .cta-row{display:flex; gap:14px; flex-wrap:wrap;}
+  .btn{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:14.5px; font-weight:500;
+    padding:14px 24px;
+    border:1px solid transparent;
+    cursor:pointer;
+    display:inline-block;
+    transition:transform .12s ease, background .15s ease, border-color .15s ease;
+  }
+  .btn:active{transform:scale(0.98);}
+  .btn-primary{background:var(--signal); color:#12100D;}
+  .btn-primary:hover{background:#ff7d4d;}
+  .btn-ghost{border-color:var(--line); color:var(--text);}
+  .btn-ghost:hover{border-color:var(--text-mute);}
+
+  /* ===== MONITOR VISUAL ===== */
+  .monitor{
+    background:var(--surface);
+    border:1px solid var(--line);
+    padding:22px 22px 0;
+    position:relative;
+    overflow:hidden;
+  }
+  .monitor-head{
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px; color:var(--text-dim);
+    padding-bottom:14px;
+    border-bottom:1px solid var(--line);
+    margin-bottom:0;
+  }
+  .monitor-head .live{color:var(--calm); display:flex; align-items:center; gap:6px;}
+  .live .blip{width:6px; height:6px; border-radius:50%; background:var(--calm); animation:blip 1.6s infinite;}
+  @keyframes blip{0%,100%{opacity:1;} 50%{opacity:0.25;}}
+
+  svg.wave{display:block; width:100%; height:220px;}
+  .scan{
+    position:absolute;
+    top:57px; bottom:0; width:1px;
+    background:linear-gradient(to bottom, rgba(255,107,53,0), rgba(255,107,53,0.55), rgba(255,107,53,0));
+    animation:scan 4.5s linear infinite;
+  }
+  @keyframes scan{
+    0%{left:2%;}
+    100%{left:98%;}
+  }
+  .tag-anomaly{
+    position:absolute;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--signal);
+    background:rgba(255,107,53,0.1);
+    border:1px solid var(--signal-dim);
+    padding:3px 8px;
+    animation:fadeblink 3.2s ease-in-out infinite;
+  }
+  @keyframes fadeblink{0%,60%,100%{opacity:0.0;} 70%,90%{opacity:1;}}
+  .monitor-foot{
+    display:flex; justify-content:space-between;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; color:var(--text-dim);
+    padding:12px 0 16px;
+    border-top:1px solid var(--line);
+  }
+
+  /* ===== PROBLEM ===== */
+  .problem{padding:88px 0; border-bottom:1px solid var(--line);}
+  .problem h2{font-size:28px; max-width:640px; margin-bottom:14px;}
+  .problem .lead{color:var(--text-mute); max-width:600px; margin-bottom:52px; font-size:15.5px;}
+  .device-row{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:0;
+    border-top:1px solid var(--line);
+  }
+  .device{
+    padding:26px 26px 0 0;
+    border-right:1px solid var(--line);
+  }
+  .device:last-child{border-right:none;}
+  .device:not(:first-child){padding-left:26px;}
+  .device h3{font-size:16px; margin-bottom:14px; font-weight:600;}
+  .device .row{
+    display:flex; justify-content:space-between; gap:12px;
+    font-size:13px; padding:9px 0;
+    border-top:1px solid rgba(42,47,58,0.6);
+  }
+  .device .row:first-of-type{border-top:none;}
+  .device .label{color:var(--text-dim);}
+  .device .normal{color:var(--calm); font-family:'IBM Plex Mono',monospace; font-size:12.5px; text-align:right;}
+  .device .attack{color:var(--signal); font-family:'IBM Plex Mono',monospace; font-size:12.5px; text-align:right;}
+
+  /* ===== HOW IT WORKS ===== */
+  .how{padding:88px 0; border-bottom:1px solid var(--line);}
+  .how h2{font-size:28px; margin-bottom:52px;}
+  .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:0; position:relative;}
+  .step{padding:0 28px 0 0; position:relative;}
+  .step:not(:first-child){padding-left:28px; border-left:1px solid var(--line);}
+  .step .num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px; color:var(--signal);
+    margin-bottom:16px;
+  }
+  .step h3{font-size:18px; margin-bottom:10px;}
+  .step p{color:var(--text-mute); font-size:14.5px;}
+
+  /* ===== METRICS ===== */
+  .metrics{padding:64px 0; border-bottom:1px solid var(--line); background:var(--surface);}
+  .metric-row{display:grid; grid-template-columns:repeat(4,1fr); gap:0;}
+  .metric{padding:0 24px; border-left:1px solid var(--line);}
+  .metric:first-child{border-left:none; padding-left:0;}
+  .metric .num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:clamp(26px,3vw,38px);
+    font-weight:500;
+    color:var(--text);
+    display:block;
+    margin-bottom:6px;
+  }
+  .metric .label{font-size:12.5px; color:var(--text-mute);}
+
+  /* ===== FOOTER CTA ===== */
+  .final-cta{padding:100px 0 90px; text-align:left;}
+  .final-cta h2{font-size:clamp(28px,3.6vw,42px); max-width:620px; margin-bottom:28px; line-height:1.15;}
+  .final-cta .cta-row{margin-bottom:56px;}
+  footer{
+    border-top:1px solid var(--line);
+    padding:28px 0 40px;
+    font-size:12.5px;
+    color:var(--text-dim);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  }
+
+  @media (max-width:860px){
+    .hero .wrap{grid-template-columns:1fr;}
+    .device-row, .steps, .metric-row{grid-template-columns:1fr;}
+    .device{border-right:none; border-bottom:1px solid var(--line); padding:22px 0;}
+    .device:not(:first-child){padding-left:0;}
+    .step{border-left:none !important; padding-left:0 !important; padding-bottom:26px; border-bottom:1px solid var(--line);}
+    .metric{border-left:none; padding:18px 0; border-top:1px solid var(--line);}
+    .metric:first-child{border-top:none;}
+    nav .nav-links{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand"><span class="dot"></span> PulseGuard</div>
+    <div class="nav-links">
+      <a href="#problem">The problem</a>
+      <a href="#how">How it works</a>
+      <a href="#metrics">Results</a>
+    </div>
+    <a class="nav-cta" href="https://mn690-client-project-es3ks2xgck7yp2wgg3ctq6.streamlit.app" target="_blank" rel="noopener">Live demo</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <div class="hero-tag"><span class="dot"></span> Live on Impact Day — real model, real predictions</div>
+      <h1>Every device has a pulse.<br>PulseGuard hears the<br>moment it <span class="accent">skips a beat</span>.</h1>
+      <p class="sub">An anomaly detection system trained on real IoT network traffic — built to catch a compromised camera, door lock, or sensor before it costs you data.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://mn690-client-project-es3ks2xgck7yp2wgg3ctq6.streamlit.app" target="_blank" rel="noopener">Launch the live demo</a>
+        <a class="btn btn-ghost" href="#how">See how detection works</a>
+      </div>
+    </div>
+
+    <div class="monitor">
+      <div class="monitor-head">
+        <span>NETWORK_FLOW.MONITOR</span>
+        <span class="live"><span class="blip"></span> DEMO</span>
+      </div>
+      <div style="position:relative;">
+        <div class="scan"></div>
+        <span class="tag-anomaly" style="top:38px; left:63%;">ANOMALY · 0.87</span>
+        <svg class="wave" viewBox="0 0 600 220" preserveAspectRatio="none">
+          <line x1="0" y1="130" x2="600" y2="130" stroke="#2A2F3A" stroke-width="1"/>
+          <path d="M0,140 L30,142 L60,136 L90,141 L120,138 L150,140
+                   L180,139 L210,141 L240,137 L270,140
+                   L300,110 L315,190 L330,60 L345,175 L360,95 L375,150 L390,120
+                   L420,141 L450,138 L480,140 L510,139 L540,141 L570,138 L600,140"
+                fill="none" stroke="#3ECF8E" stroke-width="2"/>
+          <path d="M300,110 L315,190 L330,60 L345,175 L360,95 L375,150 L390,120"
+                fill="none" stroke="#FF6B35" stroke-width="2.4"/>
+        </svg>
+      </div>
+      <div class="monitor-foot">
+        <span>DEVICE: door-lock-04</span>
+        <span>SCORE: <span style="color:#FF6B35;">-0.81</span></span>
+        <span>STATUS: <span style="color:#FF6B35;">FLAGGED</span></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="problem" id="problem">
+  <div class="wrap">
+    <h2>Most IoT devices can't defend themselves</h2>
+    <p class="lead">They can't run antivirus. They rarely get patched. And the tools built to watch them only know how to catch attacks they've already seen before. PulseGuard learns what normal looks like for every device, so it can flag what's never been seen before, too.</p>
+
+    <div class="device-row">
+      <div class="device">
+        <h3>IP camera</h3>
+        <div class="row"><span class="label">Normal</span><span class="normal">2–4 Mbps, internal server only</span></div>
+        <div class="row"><span class="label">Attacked</span><span class="attack">18 Mbps to an overseas IP, 2am</span></div>
+      </div>
+      <div class="device">
+        <h3>Smart door lock</h3>
+        <div class="row"><span class="label">Normal</span><span class="normal">10–15 packets/hour, business hours</span></div>
+        <div class="row"><span class="label">Attacked</span><span class="attack">1,000+ packets/min, SYN flood</span></div>
+      </div>
+      <div class="device">
+        <h3>Environment sensor</h3>
+        <div class="row"><span class="label">Normal</span><span class="normal">1 report every 5 minutes</span></div>
+        <div class="row"><span class="label">Attacked</span><span class="attack">1 report every 2 seconds, C&amp;C traffic</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="how" id="how">
+  <div class="wrap">
+    <h2>Three steps, no signatures required</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="num">01</div>
+        <h3>Capture</h3>
+        <p>Real IoT device traffic — normal and under attack — was captured and logged: duration, bytes, protocol, connection state. This forms the foundation the model learns from.</p>
+      </div>
+      <div class="step">
+        <div class="num">02</div>
+        <h3>Learn</h3>
+        <p>A model trained on real attack traffic — port scans, floods, brute force — learns what normal behaviour looks like for each device type.</p>
+      </div>
+      <div class="step">
+        <div class="num">03</div>
+        <h3>Flag</h3>
+        <p>The instant a flow strays from baseline, it's scored, ranked by severity, and surfaced on the dashboard — before damage is done.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="metrics" id="metrics">
+  <div class="wrap">
+    <div class="metric-row">
+      <div class="metric"><span class="num">90.8%</span><span class="label">Detection accuracy on unseen traffic</span></div>
+      <div class="metric"><span class="num">99.1%</span><span class="label">Recall — real attacks caught</span></div>
+      <div class="metric"><span class="num">173,114</span><span class="label">Network flows processed</span></div>
+      <div class="metric"><span class="num">21,533</span><span class="label">Held-out flows used to test it</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="final-cta">
+  <div class="wrap">
+    <h2>Built for a real client. Tested on real attacks.</h2>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://mn690-client-project-es3ks2xgck7yp2wgg3ctq6.streamlit.app" target="_blank" rel="noopener">Launch the live demo</a>
+      <a class="btn btn-ghost" href="#problem">Read the case study</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap" style="display:flex; justify-content:space-between; width:100%; flex-wrap:wrap; gap:10px;">
+    <span>PulseGuard — an IoT network anomaly detection system</span>
+    <span>Built by Lokesh, Mani, Navoda, Naveen &amp; Kishore · MIT MN692 Capstone</span>
+  </div>
+</footer>
+
+</body>
+</html>
