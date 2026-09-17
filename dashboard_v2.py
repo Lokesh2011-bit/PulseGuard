@@ -228,8 +228,9 @@ def load_models():
     ]:
         try:
             models[name] = joblib.load(path)
-        except:
+        except Exception as e:
             models[name] = None
+            st.warning(f"⚠️ Failed to load {name}: {e}")
     return models
 
 # ── HELPER: score live data ───────────────────────────────────────────────────
