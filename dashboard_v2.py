@@ -424,8 +424,12 @@ def score_uploaded_data(df):
     df = df.copy()
     models = load_models()
 
-    proto_map = {'tcp': 6, 'udp': 17, 'icmp': 1}
-    df['proto_enc'] = df['proto'].astype(str).str.lower().map(proto_map).fillna(-1)
+    if pd.api.types.is_numeric_dtype(df['proto']):
+        # Already encoded upstream (e.g. our own clean_data.csv exports) — use as-is.
+        df['proto_enc'] = df['proto']
+    else:
+        proto_map = {'tcp': 6, 'udp': 17, 'icmp': 1}
+        df['proto_enc'] = df['proto'].astype(str).str.lower().map(proto_map).fillna(-1)
 
     if df['conn_state'].dtype == object:
         state_map = {'Established': 0, 'Rejected': 1, 'Other': 2}
