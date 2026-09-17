@@ -410,15 +410,14 @@ def detect_and_normalize(df):
     return None, None
 
 
-@st.cache_data
-def score_uploaded_data(df_normalized_json):
+def score_uploaded_data(df):
     """
     Runs the trained models on an uploaded, normalized dataframe.
     NOTE — ENCODING ASSUMPTION: this mapping is still unverified against
     the actual training encoding for RF/XGBoost. Treat RF/XGBoost
     predictions on uploaded files as provisional until confirmed.
     """
-    df = pd.read_json(df_normalized_json)
+    df = df.copy()
     models = load_models()
 
     proto_map = {'tcp': 6, 'udp': 17, 'icmp': 1}
@@ -746,7 +745,7 @@ elif '📤 Upload & Detect' in page:
 
     if st.button("🔍 Run Anomaly Detection", type="primary"):
         with st.spinner("Running models..."):
-            results = score_uploaded_data(normalized_df.to_json())
+            results = score_uploaded_data(normalized_df)
 
         st.session_state["uploaded_results"] = results
         st.session_state["uploaded_filename"] = uploaded_file.name
