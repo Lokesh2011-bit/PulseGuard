@@ -1,9 +1,7 @@
 
 """
-IoT Network Anomaly Detection System — MN692 Capstone Project
-Client: APM (Advanced Personnel Management)
-Team: Loki (ML Engineer), Mani (Cybersecurity), Navoda (Data Engineer),
-      Naveen (Full Stack), Kishore (Network Analyst)
+PulseGuard — IoT Network Anomaly Detection System
+Real-time anomaly detection for IoT network traffic.
 """
 
 import streamlit as st
@@ -22,6 +20,12 @@ from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from sklearn.ensemble import IsolationForest, RandomForestClassifier
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.metrics import classification_report, confusion_matrix
+
+# ── BRAND LOGO (base64, loaded once at module level) ──────────────────────────
+from pathlib import Path as _Path
+_LOGO_B64 = __import__('base64').b64encode(
+    _Path('assets/pulseguard_logo.png').read_bytes()
+).decode()
 
 # ── PAGE CONFIG ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -53,8 +57,77 @@ if "authenticated" not in st.session_state:
     st.session_state.username = None
 
 if not st.session_state.authenticated:
-    st.markdown("##🛡 ️ PulseGud dAAPM Secure Logn")
-    st.markdown("<div style='color:#5A9FCC;font-size:13px;margin-bottom:20px;'>Role-based access — Admin / Analyst / Read-only</div>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <style>
+        /* Center the login form */
+        [data-testid="stForm"] {
+            max-width: 400px;
+            margin: 0 auto 0 auto;
+            border: 1px solid #2A2F3A;
+            border-radius: 4px;
+            padding: 32px 28px;
+            background: #15181F;
+        }
+        /* Brand header block above the form */
+        .pg-login-brand-wrap {
+            max-width: 400px;
+            margin: 8vh auto 0 auto;
+            text-align: center;
+        }
+        .pg-login-brand {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 28px;
+            letter-spacing: -0.01em;
+            color: #E9EBEF;
+            margin: 16px 0 6px 0;
+        }
+        .pg-login-sub {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            color: #8B93A1;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+        .pg-login-rule {
+            border: none;
+            border-top: 1px solid #2A2F3A;
+            margin: 8px auto 40px auto;
+            width: 400px;
+        }
+        /* Role hint below the form */
+        .pg-login-hint {
+            max-width: 400px;
+            margin: 18px auto 0 auto;
+            text-align: center;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10.5px;
+            color: #5B6270;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Centered logo
+    _lc1, _lc2, _lc3 = st.columns([1, 0.25, 1])
+    with _lc2:
+        st.image('assets/pulseguard_logo.png', use_container_width=True)
+
+    # Centered brand text + rule
+    st.markdown(
+        '''<div class="pg-login-brand-wrap">
+        <div class="pg-login-brand">PulseGuard</div>
+        <div class="pg-login-sub">IoT Network Anomaly Detection</div>
+        </div>
+        <hr class="pg-login-rule">''',
+        unsafe_allow_html=True,
+    )
+
     with st.form("login_form"):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
@@ -68,69 +141,169 @@ if not st.session_state.authenticated:
                 st.rerun()
             else:
                 st.error("Incorrect username or password")
+    st.markdown(
+        '<div class="pg-login-hint">Role-based access · Admin &middot; Analyst &middot; Read-only</div>',
+        unsafe_allow_html=True,
+    )
     st.stop()
 
 # ── THEME CSS ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-.stApp { background-color: #060D1F; color: #D0E4F7; }
-[data-testid="stSidebar"] { background-color: #0A1628; border-right: 1px solid #1A3A5C; }
-[data-testid="metric-container"] {
-    background: linear-gradient(135deg, #0D2137 0%, #0A1628 100%);
-    border: 1px solid #1E4A7A;
-    border-radius: 10px;
-    padding: 16px;
-    box-shadow: 0 0 12px rgba(0,180,255,0.08);
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+    --bg:         #0E1015;
+    --surface:    #15181F;
+    --surface-2:  #1B1F28;
+    --line:       #2A2F3A;
+    --text:       #E9EBEF;
+    --text-mute:  #8B93A1;
+    --text-dim:   #5B6270;
+    --signal:     #FF6B35;
+    --signal-dim: #8A3D1F;
+    --calm:       #3ECF8E;
+    --alert:      #EF4444;
+    --amber:      #F59E0B;
 }
-[data-testid="stMetricValue"] { color: #00D4AA !important; font-size: 2rem !important; }
-[data-testid="stMetricLabel"] { color: #7BA8CC !important; font-size: 0.75rem !important; text-transform: uppercase; letter-spacing: 0.06em; }
-h1, h2, h3 { color: #D0E4F7 !important; }
-hr { border-color: #1A3A5C !important; }
-.stDataFrame { border: 1px solid #1E4A7A; border-radius: 8px; }
-.stDownloadButton > button {
-    background: linear-gradient(135deg, #00A67E, #007A5E) !important;
-    color: white !important; border: none !important; border-radius: 6px !important;
+html, body, [class*="css"], .stApp, .stMarkdown, .stMetric,
+[data-testid="stMetricLabel"], [data-testid="stMetricValue"],
+.stDataFrame, .stButton > button, .stDownloadButton > button,
+input, textarea, select, button {
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+.stApp { background: var(--bg) !important; color: var(--text); }
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.01em !important;
+    color: var(--text) !important;
+}
+[data-testid="stSidebar"] {
+    background: var(--surface) !important;
+    border-right: 1px solid var(--line) !important;
+}
+[data-testid="metric-container"] {
+    background: var(--surface) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 4px !important;
+    padding: 16px !important;
+    box-shadow: none !important;
+}
+[data-testid="stMetricValue"] {
+    font-family: 'IBM Plex Mono', monospace !important;
+    color: var(--text) !important;
+    font-size: 1.75rem !important;
+    font-weight: 500 !important;
+    letter-spacing: -0.02em !important;
+}
+[data-testid="stMetricLabel"] {
+    font-family: 'IBM Plex Mono', monospace !important;
+    color: var(--text-mute) !important;
+    font-size: 0.7rem !important;
+    font-weight: 500 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+}
+.stDataFrame {
+    border: 1px solid var(--line) !important;
+    border-radius: 4px !important;
+    font-family: 'IBM Plex Mono', monospace !important;
+    font-size: 12px !important;
 }
 .stButton > button {
-    background: linear-gradient(135deg, #1A4A7A, #0D2B50) !important;
-    color: #D0E4F7 !important; border: 1px solid #2A6AAA !important; border-radius: 6px !important;
+    background: transparent !important;
+    color: var(--text) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 2px !important;
+    font-family: 'IBM Plex Sans', sans-serif !important;
+    font-weight: 500 !important;
+    transition: border-color 0.15s ease, color 0.15s ease !important;
+}
+.stButton > button:hover {
+    border-color: var(--signal) !important;
+    color: var(--signal) !important;
+}
+.stDownloadButton > button,
+[data-testid="stDownloadButton"] > button,
+.stDownloadButton button,
+button[kind="secondary"] {
+    background: var(--signal) !important;
+    color: #12100D !important;
+    border: none !important;
+    border-radius: 2px !important;
+    font-weight: 500 !important;
+    font-family: 'IBM Plex Sans', sans-serif !important;
+}
+.stDownloadButton > button:hover,
+[data-testid="stDownloadButton"] > button:hover,
+.stDownloadButton button:hover,
+button[kind="secondary"]:hover {
+    background: #ff7d4d !important;
+    color: #12100D !important;
 }
 .info-card {
-    background: linear-gradient(135deg, #0D2137, #091525);
-    border: 1px solid #1E4A7A; border-radius: 10px;
-    padding: 14px 18px; margin: 8px 0;
-    box-shadow: 0 0 10px rgba(0,150,255,0.06);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 14px 18px;
+    margin: 8px 0;
+    box-shadow: none;
 }
 .info-label {
-    font-size: 10px; font-weight: 700; color: #8FC4EC;
-    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
 }
-.info-value { font-size: 13px; color: #B0D4F0; }
-.badge-red    { background:#C0392B; color:#fff; padding:2px 9px; border-radius:12px; font-size:11px; font-weight:700; }
-.badge-amber  { background:#D97706; color:#fff; padding:2px 9px; border-radius:12px; font-size:11px; font-weight:700; }
-.badge-green  { background:#059669; color:#fff; padding:2px 9px; border-radius:12px; font-size:11px; font-weight:700; }
-.badge-blue   { background:#2563EB; color:#fff; padding:2px 9px; border-radius:12px; font-size:11px; font-weight:700; }
-.pulse { animation: pulse 2s infinite; }
-@keyframes pulse { 0%,100%{ opacity:1 } 50%{ opacity:0.5 } }
-
-/* ── Live "pulse" EKG widget (sidebar) ────────────────────────────────── */
-.ekg-wrap { overflow:hidden; width:100%; height:34px; margin:2px 0 4px; }
-.ekg-line { width:200%; height:34px; animation: ekg-scroll 3.2s linear infinite; }
+.info-value { font-size: 13.5px; color: var(--text); line-height: 1.55; }
+.badge-red   { background: var(--alert);  color: #fff; padding: 2px 9px; border-radius: 2px; font-size: 11px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; }
+.badge-amber { background: var(--amber);  color: #fff; padding: 2px 9px; border-radius: 2px; font-size: 11px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; }
+.badge-green { background: var(--calm);   color: #08150F; padding: 2px 9px; border-radius: 2px; font-size: 11px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; }
+.badge-blue  { background: #2563EB;       color: #fff; padding: 2px 9px; border-radius: 2px; font-size: 11px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; }
+.ekg-wrap { overflow: hidden; width: 100%; height: 34px; margin: 2px 0 4px; }
+.ekg-line { width: 200%; height: 34px; animation: ekg-scroll 3.2s linear infinite; }
 @keyframes ekg-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-.live-badge { display:flex; align-items:center; gap:6px; margin-bottom:10px; }
-.live-badge-label { font-size:10px; color:#7BA8CC; letter-spacing:0.08em; text-transform:uppercase; }
-
-/* ── Top navigation bar buttons ───────────────────────────────────────── */
+.live-badge { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.live-badge-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-mute); letter-spacing: 0.1em; text-transform: uppercase; }
 div[data-testid="column"] button[kind="primary"]{
-    background: linear-gradient(135deg, #00D4AA, #00A67E) !important;
-    color:#04140F !important; border:none !important; font-weight:600 !important;
+    background: transparent !important;
+    color: var(--signal) !important;
+    border: none !important;
+    border-bottom: 2px solid var(--signal) !important;
+    border-radius: 0 !important;
+    font-weight: 600 !important;
+    font-family: 'IBM Plex Sans', sans-serif !important;
 }
 div[data-testid="column"] button[kind="secondary"]{
-    background:transparent !important; color:#7BA8CC !important;
-    border:1px solid transparent !important;
+    background: transparent !important;
+    color: var(--text-mute) !important;
+    border: none !important;
+    border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important;
+    font-family: 'IBM Plex Sans', sans-serif !important;
 }
-div[data-testid="column"] button[kind="secondary"]:hover{ color:#D0E4F7 !important; }
+div[data-testid="column"] button[kind="secondary"]:hover{
+    color: var(--text) !important;
+    border-bottom-color: var(--line) !important;
+}
+.pg-brand { display: flex; align-items: center; gap: 10px; }
+.pg-brand img { width: 26px; height: 26px; }
+.pg-brand-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+.pg-credits { font-size: 11px; color: var(--text-dim); line-height: 1.6; }
+.pg-credits img { width: 22px; height: 22px; margin-bottom: 4px; }
+.pg-credits summary { cursor: pointer; outline: none; }
+.pg-credits[open] summary { margin-bottom: 8px; }
+.pg-credits-body { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--text-dim); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -162,7 +335,7 @@ def set_background(image_path):
     except FileNotFoundError:
         pass
 
-set_background("assets/dashboard_bg.webp")
+# Background removed — flat brand colour (#0E1015) via CSS above
 
 # ── CONSTANTS ─────────────────────────────────────────────────────────────────
 FEATURES_IOT23   = ['duration', 'orig_bytes', 'resp_bytes', 'proto', 'conn_state']
@@ -189,7 +362,7 @@ TOOLTIP = {
 # ── DATA LOADING ──────────────────────────────────────────────────────────────
 @st.cache_data
 def load_iot23_results():
-    """Load pre-computed IoT-23 results from MN690"""
+    """Load pre-computed IoT-23 results"""
     try:
         df = pd.read_csv('results.csv')
         return df
@@ -201,10 +374,10 @@ def load_models():
     """Load all trained ML models"""
     models = {}
     for name, path in [
-        ('Isolation Forest', 'isolation_forest_model.pkl'),
-        ('LOF',              'lof_model.pkl'),
-        ('Random Forest',    'rf_model.pkl'),
-        ('XGBoost',          'xgb_model.pkl'),
+        ('Isolation Forest', 'models_new_v2/isolation_forest_model.pkl'),
+        ('LOF',              'models_new_v2/lof_model.pkl'),
+        ('Random Forest',    'models_new_v2/rf_model.pkl'),
+        ('XGBoost',          'models_new_v2/xgb_model.pkl'),
     ]:
         try:
             models[name] = joblib.load(path)
@@ -215,8 +388,8 @@ def load_models():
 
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### 🛡️ PulseGuard")
-    st.markdown("<div style='font-size:11px;color:#5A9FCC;'>IoT Threat Pulse Monitor — APM</div>", unsafe_allow_html=True)
+    st.markdown(f'<div class="pg-brand"><img src="data:image/png;base64,{_LOGO_B64}" alt=""><span class="pg-brand-name">PulseGuard</span></div>', unsafe_allow_html=True)
+    st.markdown("<div style='font-size:11px;color:#8B93A1;'>IoT Anomaly Detection</div>", unsafe_allow_html=True)
     st.markdown("---")
 
     role_badge = {"Admin": "🔴", "Analyst": "🟡", "Read-only": "🟢"}.get(st.session_state.role, "")
@@ -225,28 +398,35 @@ with st.sidebar:
         st.session_state.authenticated = False
         st.session_state.role = None
         st.session_state.username = None
+        # Clear any upload state so a fresh login starts from the baseline
+        st.session_state.pop('last_upload_rate', None)
+        st.session_state.pop('uploaded_results', None)
+        st.session_state.pop('uploaded_filename', None)
         st.rerun()
 
     st.markdown("---")
 
     ROLE_PAGES = {
-        "Admin":     ["📊 Overview Dashboard", "📤 Upload & Detect", "🧠 Model Comparison",
-                      "📋 Device Baselines", "📄 Compliance Report"],
-        "Analyst":   ["📊 Overview Dashboard", "📤 Upload & Detect", "🧠 Model Comparison",
-                      "📋 Device Baselines"],
-        "Read-only": ["📊 Overview Dashboard", "📋 Device Baselines"],
+        "Admin":     ["Overview Dashboard", "Upload & Detect", "Model Comparison",
+                      "Device Baselines", "Compliance Report"],
+        "Analyst":   ["Overview Dashboard", "Upload & Detect", "Model Comparison",
+                      "Device Baselines"],
+        "Read-only": ["Overview Dashboard", "Device Baselines"],
     }
 
     st.markdown("<div class='info-label'>Data Source</div>", unsafe_allow_html=True)
-    data_source = st.selectbox("Select Data Source", ["IoT-23 Dataset (MN690)"])
+    data_source = st.selectbox("Select Data Source", ["IoT-23 Dataset"])
 
     st.markdown("---")
     st.markdown("<div class='info-label'>System Status</div>", unsafe_allow_html=True)
-    st.markdown("<span style='color:#00D4AA'>● Models Loaded</span>", unsafe_allow_html=True)
-    st.markdown("<span style='color:#00D4AA'>● Pipeline Active</span>", unsafe_allow_html=True)
-    st.markdown(f"<span style='color:#7BA8CC;font-size:10px;'>Last updated: {datetime.now().strftime('%d %b %Y %H:%M')}</span>", unsafe_allow_html=True)
+    st.markdown("<span style='color:#3ECF8E'>● Models Loaded</span>", unsafe_allow_html=True)
+    st.markdown("<span style='color:#3ECF8E'>● Pipeline Active</span>", unsafe_allow_html=True)
+    st.markdown(f"<span style='color:#8B93A1;font-size:10px;'>Last updated: {datetime.now().strftime('%d %b %Y %H:%M')}</span>", unsafe_allow_html=True)
 
-    if 'last_upload_rate' in st.session_state:
+    # Pulse reflects the currently-displayed dataset. If an upload is
+    # active in session state, use its rate. Otherwise fall back to the
+    # reference results file (baseline).
+    if 'uploaded_results' in st.session_state and 'last_upload_rate' in st.session_state:
         _rate = st.session_state['last_upload_rate']
     else:
         _pulse_df = load_iot23_results()
@@ -259,13 +439,13 @@ with st.sidebar:
             _rate = None
 
     if _rate is None:
-        _pulse_color, _pulse_status, _pulse_speed = "#7BA8CC", "No data loaded", 4.0
+        _pulse_color, _pulse_status, _pulse_speed = "#8B93A1", "No data loaded", 4.0
     elif _rate < 30:
-        _pulse_color, _pulse_status, _pulse_speed = "#00D4AA", "Nominal", 3.2
+        _pulse_color, _pulse_status, _pulse_speed = "#3ECF8E", "Nominal", 3.2
     elif _rate < 60:
         _pulse_color, _pulse_status, _pulse_speed = "#F59E0B", "Elevated", 2.2
     else:
-        _pulse_color, _pulse_status, _pulse_speed = "#FF4C6A", "Critical", 1.3
+        _pulse_color, _pulse_status, _pulse_speed = "#EF4444", "Critical", 1.3
 
     _rate_text = f"{_rate:.1f}% alert rate" if _rate is not None else "awaiting data"
 
@@ -288,7 +468,18 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("<div style='font-size:10px;color:#3A6A9C;'>MN692 Capstone | Client: APM<br>Supervisor: Ahmed Jawad Khan<br>Team: Loki · Mani · Navoda · Naveen · Kishore</div>", unsafe_allow_html=True)
+    st.markdown(
+        f'''<details class="pg-credits">
+        <summary><img src="data:image/png;base64,{_LOGO_B64}" alt="PulseGuard"></summary>
+        <div class="pg-credits-body">
+        PulseGuard v2.0 · IoT Anomaly Detection<br><br>
+        Built by Lokesh, Mani, Navoda, Naveen &amp; Kishore<br>
+        Client: APM (Advanced Personnel Management)<br>
+        MN692 Capstone · Supervisor: Ahmed Jawad Khan
+        </div>
+        </details>''',
+        unsafe_allow_html=True
+    )
 
 # ── TOP NAVIGATION BAR ─────────────────────────────────────────────────────
 if "current_page" not in st.session_state:
@@ -297,7 +488,7 @@ if "current_page" not in st.session_state:
 nav_items = ROLE_PAGES[st.session_state.role]
 nav_cols = st.columns([1.4] + [1]*len(nav_items))
 with nav_cols[0]:
-    st.markdown("#### 🛡️ PulseGuard")
+    st.markdown("#### PulseGuard")
 for i, item in enumerate(nav_items):
     with nav_cols[i+1]:
         is_active = st.session_state.current_page == item
@@ -333,12 +524,71 @@ def bucket_argus_state(code):
     return "Other"
 
 
+# ── Label encodings used at TRAINING time (verified against clean_data.csv) ──
+# These are the exact integer codes the RF / XGB / IF / LOF models were fit on.
+PROTO_MAP      = {'icmp': 0, 'tcp': 1, 'udp': 2}
+CONN_STATE_MAP = {'OTH': 0, 'REJ': 1, 'RSTO': 2, 'RSTR': 3, 'S0': 4,
+                  'S1': 5, 'S2': 6, 'S3': 7, 'SF': 8, 'SHR': 9}
+
+
+# ── MinMaxScaler parameters recovered from the training pipeline ──────────
+# clean_data.csv was produced by applying MinMaxScaler to three numeric
+# features. Without applying the SAME scaler at scoring time, the models
+# receive raw byte counts up to 1.7e9 instead of the [0,1] values they
+# were trained on — every row then looks anomalous.
+#
+# Recovered by pairing raw combined_data.csv with clean_data.csv row-by-row
+# and solving raw = min + clean * (max - min) via least squares. Verified:
+# reconstruction error < 3e-15 on all three features. See evaluation report §X.
+SCALER_MIN = {
+    'duration':   0.0,
+    'orig_bytes': 0.0,
+    'resp_bytes': 0.0,
+}
+SCALER_MAX = {
+    'duration':   78_840.32931,
+    'orig_bytes': 1_744_830_458.0,
+    'resp_bytes': 336_516_351.0,
+}
+
+
+def apply_training_scaler(df):
+    """Apply the same MinMaxScaler used during training.
+    Must run BEFORE building X, and AFTER numeric coercion."""
+    for col in ['duration', 'orig_bytes', 'resp_bytes']:
+        mn, mx = SCALER_MIN[col], SCALER_MAX[col]
+        if mx > mn:
+            df[col] = (df[col] - mn) / (mx - mn)
+        else:
+            df[col] = 0.0
+    return df
+
+
+def encode_conn_state(code):
+    """Maps a raw Zeek conn.log state string to the same integer code
+    the models were trained on (verified 1-to-1 against clean_data.csv).
+    Unknown states fall back to OTH=0, the 'everything else' bucket."""
+    if pd.isna(code):
+        return 0
+    return CONN_STATE_MAP.get(str(code).upper(), 0)
+
+
 def detect_and_normalize(df):
     """
-    Detects whether an uploaded dataframe is IoT-23 or CTU-13 format,
-    and returns (normalized_df, format_name).
+    Detects whether an uploaded dataframe is IoT-23, CTU-13, or raw
+    Zeek/Bro conn.log format, and returns (normalized_df, format_name).
     """
     cols = set(df.columns)
+
+    zeek_signature = {'ts', 'uid', 'id.orig_h', 'id.resp_h'}
+    if zeek_signature.issubset(cols) and {'duration', 'orig_bytes', 'resp_bytes', 'proto', 'conn_state'}.issubset(cols):
+        out = pd.DataFrame()
+        out['duration']   = pd.to_numeric(df['duration'].replace('-', pd.NA), errors='coerce').fillna(0)
+        out['orig_bytes'] = pd.to_numeric(df['orig_bytes'].replace('-', pd.NA), errors='coerce').fillna(0)
+        out['resp_bytes'] = pd.to_numeric(df['resp_bytes'].replace('-', pd.NA), errors='coerce').fillna(0)
+        out['proto']      = df['proto']
+        out['conn_state'] = df['conn_state'].apply(encode_conn_state)
+        return out, "Zeek/Bro conn.log"
 
     if {'duration', 'orig_bytes', 'resp_bytes', 'proto', 'conn_state'}.issubset(cols):
         return df[['duration', 'orig_bytes', 'resp_bytes', 'proto', 'conn_state']].copy(), "IoT-23"
@@ -365,23 +615,50 @@ def score_uploaded_data(df):
     df = df.copy()
     models = load_models()
 
+    # Encode proto using the TRAINING-time label codes (verified against
+    # clean_data.csv). If already numeric, trust it; otherwise apply PROTO_MAP.
     if pd.api.types.is_numeric_dtype(df['proto']):
-        # Already encoded upstream (e.g. our own clean_data.csv exports) — use as-is.
-        df['proto_enc'] = df['proto']
+        df['proto_enc'] = df['proto'].astype(int)
     else:
-        proto_map = {'tcp': 6, 'udp': 17, 'icmp': 1}
-        df['proto_enc'] = df['proto'].astype(str).str.lower().map(proto_map).fillna(-1)
+        df['proto_enc'] = (df['proto'].astype(str).str.lower()
+                            .map(PROTO_MAP).fillna(0).astype(int))
 
-    if df['conn_state'].dtype == object:
-        state_map = {'Established': 0, 'Rejected': 1, 'Other': 2}
-        df['conn_state_enc'] = df['conn_state'].map(state_map).fillna(2)
+    # Encode conn_state using the TRAINING-time label codes.
+    if pd.api.types.is_numeric_dtype(df['conn_state']):
+        df['conn_state_enc'] = df['conn_state'].astype(int)
     else:
-        df['conn_state_enc'] = df['conn_state']
-
-    for _col in ['duration', 'orig_bytes', 'resp_bytes']:
-        df[_col] = pd.to_numeric(df[_col], errors='coerce').fillna(0)
+        df['conn_state_enc'] = (df['conn_state'].astype(str).str.upper()
+                                 .map(CONN_STATE_MAP).fillna(0).astype(int))
 
     features = ['duration', 'orig_bytes', 'resp_bytes', 'proto_enc', 'conn_state_enc']
+
+    # Force EVERY feature numeric BEFORE building X — this is what stops the
+    # silent 'Established' string from reaching RF/XGB via category/object dtypes.
+    for _col in features:
+        df[_col] = pd.to_numeric(df[_col], errors='coerce').fillna(0)
+
+    # Apply the training-time MinMaxScaler. Without this, raw byte counts
+    # (up to ~1.7e9) reach models trained on values in [0, 1] — every row
+    # is out-of-distribution and flagged as anomalous. See evaluation report §X.
+    df = apply_training_scaler(df)
+
+    # Drop half-open connections: rows where every byte field is 0. These are
+    # Zeek S0/OTH entries — SYN attempts with no reply, no payload. Standard
+    # NIDS practice: filter them before scoring so the model sees real flows.
+    _before = len(df)
+    df = df[~((df['duration'] == 0) &
+              (df['orig_bytes'] == 0) &
+              (df['resp_bytes'] == 0))].reset_index(drop=True)
+    _dropped = _before - len(df)
+    if _dropped > 0:
+        print(f"NOTE: dropped {_dropped:,} half-open rows (no payload) before scoring.")
+
+    if len(df) == 0:
+        print("WARN: all rows were filtered out as half-open. Nothing to score.")
+        return pd.DataFrame(columns=features + ['iso_pred', 'lof_pred', 'rf_pred',
+                                                 'xgb_pred', 'anomaly_score',
+                                                 'ensemble_pred', 'label'])
+
     X = df[features].values
     results = df.copy()
 
@@ -418,7 +695,7 @@ def score_uploaded_data(df):
     else:
         results['xgb_pred'] = results['iso_pred']
 
-    results['ensemble_pred'] = ((results['iso_pred'] + results['lof_pred'] + results['rf_pred']) >= 2).astype(int)
+    results['ensemble_pred'] = ((results['iso_pred'] + results['lof_pred'] + results['rf_pred'] + results['xgb_pred']) >= 2).astype(int)
     results['label'] = results['ensemble_pred'].map({1: 'Malicious', 0: 'Benign'})
     return results
 
@@ -432,25 +709,26 @@ PLOT_LAYOUT = dict(
     xaxis=dict(gridcolor='#1A3A5C', zerolinecolor='#1A3A5C'),
     yaxis=dict(gridcolor='#1A3A5C', zerolinecolor='#1A3A5C'),
 )
-COL_MAL = '#FF4C6A'
-COL_BEN = '#00D4AA'
+COL_MAL = '#EF4444'
+COL_BEN = '#3ECF8E'
 COL_AMB = '#F59E0B'
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 1 — OVERVIEW DASHBOARD
 # ══════════════════════════════════════════════════════════════════════════════
-if '📊 Overview Dashboard' in page:
-    st.markdown("## 🛡️ IoT Network Anomaly Detection System")
-    st.markdown("<div style='color:#5A9FCC;font-size:13px;margin-bottom:20px;'>Client: APM (Advanced Personnel Management) &nbsp;|&nbsp; MN692 Capstone Project &nbsp;|&nbsp; Supervisor: Ahmed Jawad Khan</div>", unsafe_allow_html=True)
+if 'Overview Dashboard' in page:
+    st.markdown("## IoT Network Anomaly Detection System")
+    st.markdown("<div style='color:#8B93A1;font-size:13px;margin-bottom:20px;'>Client: APM (Advanced Personnel Management)</div>", unsafe_allow_html=True)
 
     if "uploaded_results" in st.session_state:
         df = st.session_state["uploaded_results"]
         source_label = f"Uploaded file — {st.session_state['uploaded_filename']}"
         if st.button("🔄 Clear uploaded data and return to default dataset"):
-            del st.session_state["uploaded_results"]
-            del st.session_state["uploaded_filename"]
+            st.session_state.pop("uploaded_results", None)
+            st.session_state.pop("uploaded_filename", None)
+            st.session_state.pop("last_upload_rate", None)
             st.rerun()
-    elif data_source == "IoT-23 Dataset (MN690)":
+    elif data_source == "IoT-23 Dataset":
         df = load_iot23_results()
         source_label = "IoT-23 Dataset — 23 CSV files from Stratosphere Laboratory, CTU Prague"
 
@@ -466,15 +744,15 @@ if '📊 Overview Dashboard' in page:
     n_normal = total - n_anom
     rate     = n_anom / total * 100 if total else 0
 
-    col1.metric("🔍 Total Flows", f"{total:,}", help=TOOLTIP['duration'])
-    col2.metric("🚨 Anomalies", f"{n_anom:,}", delta=f"{rate:.1f}% alert rate",
+    col1.metric("Total Flows", f"{total:,}", help=TOOLTIP['duration'])
+    col2.metric("Anomalies", f"{n_anom:,}", delta=f"{rate:.1f}% alert rate",
                 delta_color="inverse", help=TOOLTIP['ensemble_pred'])
-    col3.metric("✅ Normal Flows", f"{n_normal:,}", help="Flows classified as benign by the ensemble")
-    col4.metric("📈 Alert Rate", f"{rate:.1f}%", help="Percentage of total flows flagged as anomalous")
+    col3.metric("Normal Flows", f"{n_normal:,}", help="Flows classified as benign by the ensemble")
+    col4.metric("Alert Rate", f"{rate:.1f}%", help="Percentage of total flows flagged as anomalous")
 
     if 'anomaly_score' in df.columns:
         avg_score = df[df['ensemble_pred']==1]['anomaly_score'].mean()
-        col5.metric("⚡ Avg Anomaly Score", f"{avg_score:.3f}", help=TOOLTIP['anomaly_score'])
+        col5.metric("Avg Anomaly Score", f"{avg_score:.3f}", help=TOOLTIP['anomaly_score'])
     else:
         col5.metric("📊 Unique IPs", f"{df['ip.src'].nunique() if 'ip.src' in df.columns else 'N/A'}")
 
@@ -483,7 +761,7 @@ if '📊 Overview Dashboard' in page:
     c1, c2, c3 = st.columns([1, 1.2, 1])
 
     with c1:
-        st.markdown("#### 📊 Traffic Distribution")
+        st.markdown("#### Traffic Distribution")
         st.markdown(f"<div class='info-label'>{TOOLTIP.get('label','')}</div>", unsafe_allow_html=True)
         if 'label' in df.columns:
             counts = df['label'].value_counts()
@@ -500,7 +778,7 @@ if '📊 Overview Dashboard' in page:
         st.plotly_chart(fig_pie, use_container_width=True)
 
     with c2:
-        st.markdown("#### ⚠️ Anomaly Score Distribution")
+        st.markdown("#### Anomaly Score Distribution")
         st.markdown(f"<div class='info-label'>{TOOLTIP['anomaly_score']}</div>", unsafe_allow_html=True)
         if 'anomaly_score' in df.columns:
             fig_hist = px.histogram(
@@ -517,7 +795,7 @@ if '📊 Overview Dashboard' in page:
             st.info("Anomaly scores not available for this data source")
 
     with c3:
-        st.markdown("#### 🌐 Protocol Distribution")
+        st.markdown("#### Protocol Distribution")
         st.markdown(f"<div class='info-label'>{TOOLTIP['proto']}</div>", unsafe_allow_html=True)
         proto_col = 'proto' if 'proto' in df.columns else 'ip.proto'
         if proto_col in df.columns:
@@ -535,7 +813,7 @@ if '📊 Overview Dashboard' in page:
 
     st.markdown("---")
 
-    st.markdown("#### 📈 Anomaly Score Over Time")
+    st.markdown("#### Anomaly Score Over Time")
     st.markdown(f"<div class='info-label'>{TOOLTIP['anomaly_score']}</div>", unsafe_allow_html=True)
 
     time_col = 'frame.time_relative' if 'frame.time_relative' in df.columns else None
@@ -577,7 +855,7 @@ if '📊 Overview Dashboard' in page:
 
     st.markdown("---")
 
-    st.markdown("#### 🔴 Top Detected Anomalies")
+    st.markdown("#### Top Detected Anomalies")
 
     show_cols_iot23 = ['duration', 'orig_bytes', 'resp_bytes', 'proto', 'conn_state', 'label', 'anomaly_score']
     show_cols_live  = ['frame.time_relative', 'ip.src', 'ip.dst', 'tcp.srcport', 'tcp.dstport', 'frame.len', 'label', 'anomaly_score']
@@ -599,7 +877,7 @@ if '📊 Overview Dashboard' in page:
     tooltip_cols = [c for c in available if c in TOOLTIP]
     if tooltip_cols:
         tip_text = " &nbsp;|&nbsp; ".join([f"<b>{c}</b>: {TOOLTIP[c].replace('ℹ️','')}" for c in tooltip_cols[:4]])
-        st.markdown(f"<div style='font-size:10px;color:#5A9FCC;margin-bottom:6px;'>{tip_text}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:10px;color:#8B93A1;margin-bottom:6px;'>{tip_text}</div>", unsafe_allow_html=True)
 
     rename_map = {
         'duration':      'DURATION ⓘ',
@@ -641,9 +919,9 @@ if '📊 Overview Dashboard' in page:
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 2 — UPLOAD & DETECT
 # ══════════════════════════════════════════════════════════════════════════════
-elif '📤 Upload & Detect' in page:
-    st.markdown("## 📤 Upload & Detect")
-    st.markdown("<div style='color:#5A9FCC;font-size:13px;'>Upload a network flow capture (IoT-23 or CTU-13 format) for on-demand anomaly detection</div>", unsafe_allow_html=True)
+elif 'Upload & Detect' in page:
+    st.markdown("## Upload & Detect")
+    st.markdown("<div style='color:#8B93A1;font-size:13px;'>Upload a network flow capture (IoT-23 or CTU-13 format) for on-demand anomaly detection</div>", unsafe_allow_html=True)
     st.markdown("---")
 
     st.caption("Supported formats: **IoT-23** and **CTU-13** (CSV or Parquet)")
@@ -707,14 +985,14 @@ elif '📤 Upload & Detect' in page:
         st.session_state['last_upload_rate'] = rate
 
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("🔍 Total Flows", f"{n_total:,}")
-        c2.metric("🚨 Anomalies", f"{n_anom:,}", delta=f"{rate:.1f}% alert rate", delta_color="inverse")
-        c3.metric("✅ Normal Flows", f"{n_normal:,}")
+        c1.metric("Total Flows", f"{n_total:,}")
+        c2.metric("Anomalies", f"{n_anom:,}", delta=f"{rate:.1f}% alert rate", delta_color="inverse")
+        c3.metric("Normal Flows", f"{n_normal:,}")
         avg_score = results[results['ensemble_pred']==1]['anomaly_score'].mean() if n_anom else None
-        c4.metric("⚡ Avg Anomaly Score", f"{avg_score:.3f}" if avg_score is not None else "N/A")
+        c4.metric("Avg Anomaly Score", f"{avg_score:.3f}" if avg_score is not None else "N/A")
 
         st.markdown("---")
-        st.markdown("#### 📊 Result Breakdown")
+        st.markdown("#### Result Breakdown")
         counts = results['label'].value_counts()
         fig_pie = px.pie(
             values=counts.values, names=counts.index,
@@ -726,7 +1004,7 @@ elif '📤 Upload & Detect' in page:
         fig_pie.update_traces(textfont_color='white', textfont_size=12)
         st.plotly_chart(fig_pie, use_container_width=True)
 
-        st.markdown("#### 🔴 Detected Anomalies")
+        st.markdown("#### Detected Anomalies")
         show_cols = ['duration', 'orig_bytes', 'resp_bytes', 'proto', 'conn_state', 'label', 'anomaly_score']
         show_cols = [c for c in show_cols if c in results.columns]
         anom_df = results[results['ensemble_pred'] == 1][show_cols].sort_values('anomaly_score').head(50)
@@ -745,121 +1023,154 @@ elif '📤 Upload & Detect' in page:
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 3 — LIVE SIMULATION FEED
 # ══════════════════════════════════════════════════════════════════════════════
-elif '🧠 Model Comparison' in page:
-    st.markdown("## 🧠 ML Model Comparison — MN692")
-    st.markdown("<div style='color:#5A9FCC;font-size:13px;'>Comparing unsupervised (MN690) vs supervised (MN692) approaches to improve accuracy beyond 51.5%</div>", unsafe_allow_html=True)
+elif 'Model Comparison' in page:
+    st.markdown("## ML Model Comparison")
+    st.markdown("<div style='color:#8B93A1;font-size:13px;'>Unsupervised anomaly detection and supervised classification working together.</div>", unsafe_allow_html=True)
     st.markdown("---")
 
     models = load_models()
-    rf_status  = '✅ MN692 Trained' if models.get('Random Forest') else '🔄 Not yet trained'
-    xgb_status = '✅ MN692 Trained' if models.get('XGBoost')       else '🔄 Not yet trained'
+    rf_status  = 'Trained' if models.get('Random Forest') else 'Not yet trained'
+    xgb_status = 'Trained' if models.get('XGBoost')       else 'Not yet trained'
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.markdown("""
         <div class='info-card'>
-            <div class='info-label'>MN690 — Isolation Forest</div>
-            <div class='info-value'><b>Type:</b> Unsupervised<br>
-            <b>Alert Rate:</b> 51.5%<br>
-            <b>Accuracy:</b> ~72% (vs IoT-23 labels)<br>
-            <b>Strength:</b> No labels needed<br>
-            <b>Weakness:</b> High false positives</div>
+            <div class='info-label'>Unsupervised — Isolation Forest</div>
+            <div class='info-value'>
+            <b>Role:</b> Primary anomaly detector<br>
+            <b>Strength:</b> No labels required; fast<br>
+            <b>Weakness:</b> Sensitive to contamination setting<br>
+            <b>Status:</b> Deployed
+            </div>
         </div>""", unsafe_allow_html=True)
     with col2:
         st.markdown("""
         <div class='info-card'>
-            <div class='info-label'>MN690 — Local Outlier Factor</div>
-            <div class='info-value'><b>Type:</b> Unsupervised<br>
+            <div class='info-label'>Unsupervised — Local Outlier Factor</div>
+            <div class='info-value'>
             <b>Role:</b> Ensemble partner<br>
-            <b>Strength:</b> Local density-based<br>
-            <b>Weakness:</b> Slow on large data<br>
-            <b>Status:</b> ✅ Deployed MN690</div>
+            <b>Strength:</b> Local density-based detection<br>
+            <b>Weakness:</b> Slower on large data<br>
+            <b>Status:</b> Deployed
+            </div>
         </div>""", unsafe_allow_html=True)
     with col3:
         st.markdown(f"""
         <div class='info-card'>
-            <div class='info-label'>MN692 — Random Forest</div>
-            <div class='info-value'><b>Type:</b> Supervised<br>
-            <b>Target Accuracy:</b> >85% F1<br>
-            <b>Strength:</b> Feature importance<br>
-            <b>Strength:</b> High precision<br>
-            <b>Status:</b> {rf_status}</div>
+            <div class='info-label'>Supervised — Random Forest</div>
+            <div class='info-value'>
+            <b>Role:</b> Classifier<br>
+            <b>Strength:</b> Feature importance; high precision<br>
+            <b>Weakness:</b> Requires labelled training data<br>
+            <b>Status:</b> {rf_status}
+            </div>
+        </div>""", unsafe_allow_html=True)
+    with col4:
+        st.markdown(f"""
+        <div class='info-card'>
+            <div class='info-label'>Supervised — XGBoost</div>
+            <div class='info-value'>
+            <b>Role:</b> Classifier<br>
+            <b>Strength:</b> Fast inference on tabular data<br>
+            <b>Weakness:</b> Requires labelled training data<br>
+            <b>Status:</b> {xgb_status}
+            </div>
         </div>""", unsafe_allow_html=True)
 
-    st.markdown("---")
-
-    st.markdown("#### 📊 Algorithm Comparison Summary")
+        st.markdown("#### Algorithm Comparison Summary")
     comparison_data = {
         'Algorithm':          ['Isolation Forest', 'Local Outlier Factor', 'Random Forest', 'XGBoost'],
         'Type':               ['Unsupervised', 'Unsupervised', 'Supervised', 'Supervised'],
         'Labels Required?':   ['No', 'No', 'Yes', 'Yes'],
-        'F1 Score':           ['~72%', '~68%', '>85%', '>88%'],
+        'F1 Score':           ['see report', 'see report', 'see report', 'see report'],
         'Speed':              ['Fast', 'Slow', 'Fast', 'Very Fast'],
         'Feature Importance': ['❌ No', '❌ No', '✅ Yes', '✅ Yes'],
-        'Semester':           ['MN690', 'MN690', 'MN692', 'MN692'],
-        'Status':             ['✅ MN690 Deployed', '✅ MN690 Deployed', rf_status, xgb_status],
+        'Stage':              ['Base', 'Base', 'Supervised', 'Supervised'],
+        'Status':             ['Deployed', 'Deployed', rf_status, xgb_status],
     }
     df_cmp = pd.DataFrame(comparison_data)
     st.dataframe(df_cmp, use_container_width=True, hide_index=True)
 
     st.markdown("---")
 
-    st.markdown("#### 📈 Expected Accuracy Improvement — MN690 → MN692")
-    fig_acc = go.Figure()
-    models_names = ['Isolation\nForest', 'LOF', 'IF+LOF\nEnsemble', 'Random\nForest', 'XGBoost']
-    accuracies   = [72, 68, 74, 87, 91]
-    colors       = [COL_BEN, COL_BEN, COL_AMB, COL_MAL, '#9B59B6']
-    fig_acc.add_trace(go.Bar(
-        x=models_names, y=accuracies,
-        marker_color=colors,
-        text=[f"{a}%" for a in accuracies],
-        textposition='outside', textfont=dict(color='#D0E4F7'),
-    ))
-    fig_acc.add_hline(y=85, line_dash='dash', line_color='#F59E0B',
-                      annotation_text="🎯 MN692 Target: 85%")
-    fig_acc.update_layout(**PLOT_LAYOUT,
-                          yaxis_title="Expected F1 Score ℹ️ (%)",
-                          yaxis_range=[0, 100])
-    st.plotly_chart(fig_acc, use_container_width=True)
+    st.markdown("#### Model Evaluation")
+    st.markdown(
+        "<div style='color:#8B93A1;font-size:13px;margin-bottom:14px;'>"
+        "F1 scores computed live from the reference results file "
+        "(per-model predictions vs. ground-truth labels)."
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    # Compute F1 for each model from results.csv (real data, live computation)
+    _ref = load_iot23_results()
+    if _ref is not None and 'label_enc' in _ref.columns:
+        from sklearn.metrics import f1_score as _f1
+        _y = _ref['label_enc'].values
+        _model_cols = [
+            ('Isolation Forest', 'iso_pred'),
+            ('Local Outlier Factor', 'lof_pred'),
+            ('Random Forest', 'rf_pred'),
+            ('XGBoost', 'xgb_pred'),
+            ('Ensemble (≥2 of 4)', 'ensemble_pred'),
+        ]
+        _rows = []
+        for _name, _col in _model_cols:
+            if _col in _ref.columns:
+                try:
+                    _rows.append((_name, float(_f1(_y, _ref[_col].values)) * 100))
+                except Exception:
+                    pass
+
+        if _rows:
+            import plotly.graph_objects as _go
+            _names  = [r[0] for r in _rows]
+            _scores = [r[1] for r in _rows]
+            _colors = [COL_BEN if s >= 85 else (COL_AMB if s >= 70 else COL_MAL) for s in _scores]
+
+            _fig = _go.Figure()
+            _fig.add_trace(_go.Bar(
+                x=_names, y=_scores,
+                marker_color=_colors,
+                text=[f"{s:.1f}%" for s in _scores],
+                textposition='outside',
+                textfont=dict(color='#E9EBEF', family='IBM Plex Mono'),
+            ))
+            _fig.add_hline(
+                y=85, line_dash='dash', line_color=COL_AMB,
+                annotation_text="Target: 85%",
+                annotation_font=dict(color='#8B93A1', family='IBM Plex Mono', size=11),
+            )
+            _fig.update_layout(
+                **PLOT_LAYOUT,
+                yaxis_title="F1 Score (%)",
+                yaxis_range=[0, 105],
+                showlegend=False,
+            )
+            st.plotly_chart(_fig, use_container_width=True)
+
+            st.markdown(
+                f"<div style='color:#5B6270;font-size:11px;font-family:IBM Plex Mono,monospace;margin-top:6px;'>"
+                f"Computed on {len(_ref):,} reference flows · "
+                f"Target threshold 85% F1 · "
+                f"Higher is better"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.info("Reference prediction columns not found in results.csv.")
+    else:
+        st.info("No reference results available for evaluation.")
 
     st.markdown("---")
-
-    with st.expander("🔧 How to Train Random Forest — Run This Code"):
-        st.code("""
-# Run in Mac Terminal
-python3 - <<'EOF'
-import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
-import joblib
-
-df = pd.read_csv('clean_data.csv')
-features = ['duration', 'orig_bytes', 'resp_bytes', 'proto', 'conn_state']
-X = df[features].values
-y = df['label_enc'].values
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.3, random_state=42, stratify=y
-)
-
-rf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
-rf.fit(X_train, y_train)
-
-y_pred = rf.predict(X_test)
-print(classification_report(y_test, y_pred, target_names=['Benign','Malicious']))
-
-joblib.dump(rf, 'rf_model.pkl')
-print("Random Forest model saved as rf_model.pkl")
-EOF
-        """, language='bash')
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 5 — DEVICE BASELINES
 # ══════════════════════════════════════════════════════════════════════════════
-elif '📋 Device Baselines' in page:
-    st.markdown("## 📋 IoT Device Baseline Profiles")
-    st.markdown("<div style='color:#5A9FCC;font-size:13px;'>Normal behaviour benchmarks for APM's IoT device types — defined by Naveen (Network Analyst)</div>", unsafe_allow_html=True)
+elif 'Device Baselines' in page:
+    st.markdown("## IoT Device Baseline Profiles")
+    st.markdown("<div style='color:#8B93A1;font-size:13px;'>Normal behaviour benchmarks for APM's IoT device types — defined by the PulseGuard team</div>", unsafe_allow_html=True)
     st.markdown("---")
 
     devices = [
@@ -931,22 +1242,22 @@ elif '📋 Device Baselines' in page:
         with c1:
             st.markdown("**✅ Normal Behaviour**")
             for attr, val in dev['normal'].items():
-                st.markdown(f"<div class='info-card' style='padding:8px 14px;margin:4px 0;'><div class='info-label'>{attr}</div><div class='info-value' style='color:#00D4AA'>{val}</div></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='info-card' style='padding:8px 14px;margin:4px 0;'><div class='info-label'>{attr}</div><div class='info-value' style='color:#3ECF8E'>{val}</div></div>", unsafe_allow_html=True)
         with c2:
             st.markdown("**🚨 Attack Behaviour**")
             for attr, val in dev['attack'].items():
-                st.markdown(f"<div class='info-card' style='padding:8px 14px;margin:4px 0;border-color:#5A1A2A;'><div class='info-label'>{attr}</div><div class='info-value' style='color:#FF4C6A'>{val}</div></div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='background:#1A0A0A;border:1px solid #5A1A2A;border-radius:8px;padding:10px 16px;margin:8px 0 20px;font-size:12px;color:#FF8A99;'><b>⚠️ Threat: </b>{dev['threat']}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='info-card' style='padding:8px 14px;margin:4px 0;border-color:#3A1A1A;'><div class='info-label'>{attr}</div><div class='info-value' style='color:#EF4444'>{val}</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.35);border-left:3px solid #EF4444;border-radius:4px;padding:11px 16px;margin:8px 0 20px;font-size:12px;color:#EF4444;font-family:IBM Plex Mono,monospace;'><b>Threat:</b> {dev['threat']}</div>", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 6 — COMPLIANCE REPORT
 # ══════════════════════════════════════════════════════════════════════════════
-elif '📄 Compliance Report' in page:
+elif 'Compliance Report' in page:
     if st.session_state.role != "Admin":
         st.error("🔒 This page is restricted to Admin accounts.")
         st.stop()
-    st.markdown("## 📄 NDB Compliance Report")
-    st.markdown("<div style='color:#5A9FCC;font-size:13px;'>Australian Privacy Act 1988 (Cth) — Notifiable Data Breaches Scheme</div>", unsafe_allow_html=True)
+    st.markdown("## NDB Compliance Report")
+    st.markdown("<div style='color:#8B93A1;font-size:13px;'>Australian Privacy Act 1988 (Cth) — Notifiable Data Breaches Scheme</div>", unsafe_allow_html=True)
     st.markdown("---")
 
     col1, col2 = st.columns(2)
@@ -980,7 +1291,7 @@ elif '📄 Compliance Report' in page:
     df_comp = load_iot23_results()
     if df_comp is not None and 'ensemble_pred' in df_comp.columns:
         anom_comp = df_comp[df_comp['ensemble_pred'] == 1].copy()
-        anom_comp['incident_id']         = [f"INC-MN692-{i+1:04d}" for i in range(len(anom_comp))]
+        anom_comp['incident_id']         = [f"INC-{i+1:04d}" for i in range(len(anom_comp))]
         anom_comp['detection_time']      = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         anom_comp['severity']            = anom_comp['anomaly_score'].apply(
             lambda s: 'Critical' if s < -0.65 else ('High' if s < -0.5 else 'Medium'))
@@ -992,7 +1303,7 @@ elif '📄 Compliance Report' in page:
         anom_comp['ndb_notifiable']      = anom_comp['severity'].apply(
             lambda s: 'Yes — notify OAIC' if s == 'Critical' else 'Assess further')
 
-        st.markdown("#### 🔴 Detected Incidents Requiring NDB Assessment")
+        st.markdown("#### Detected Incidents Requiring NDB Assessment")
         report_cols = ['incident_id', 'anomaly_score', 'severity', 'ndb_notifiable', 'recommended_action']
         if 'label' in anom_comp.columns: report_cols.insert(1, 'label')
         report_cols = [c for c in report_cols if c in anom_comp.columns]
@@ -1007,7 +1318,7 @@ elif '📄 Compliance Report' in page:
         )
 
     st.markdown("---")
-    st.markdown("#### ⚖️ Security Principles Applied")
+    st.markdown("#### Security Principles Applied")
     c1, c2, c3 = st.columns(3)
     with c1:
         st.markdown("<div class='info-card'><div class='info-label'>Secure by Design</div><div class='info-value'>Security built into every layer from day one. Encryption, access control, and audit logging throughout the pipeline.</div></div>", unsafe_allow_html=True)
