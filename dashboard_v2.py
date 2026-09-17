@@ -301,17 +301,20 @@ with st.sidebar:
     st.markdown("<span style='color:#00D4AA'>● Pipeline Active</span>", unsafe_allow_html=True)
     st.markdown(f"<span style='color:#7BA8CC;font-size:10px;'>Last updated: {datetime.now().strftime('%d %b %Y %H:%M')}</span>", unsafe_allow_html=True)
 
-    if data_source == "IoT-23 Dataset (MN690)":
-        _pulse_df = load_iot23_results()
+    if 'last_upload_rate' in st.session_state:
+        _rate = st.session_state['last_upload_rate']
     else:
-        _pulse_df = score_live_data(hash("live"))
+        if data_source == "IoT-23 Dataset (MN690)":
+            _pulse_df = load_iot23_results()
+        else:
+            _pulse_df = score_live_data(hash("live"))
 
-    if _pulse_df is not None and 'ensemble_pred' in _pulse_df.columns and len(_pulse_df) > 0:
-        _total = len(_pulse_df)
-        _anom  = int(_pulse_df['ensemble_pred'].sum())
-        _rate  = _anom / _total * 100
-    else:
-        _rate = None
+        if _pulse_df is not None and 'ensemble_pred' in _pulse_df.columns and len(_pulse_df) > 0:
+            _total = len(_pulse_df)
+            _anom  = int(_pulse_df['ensemble_pred'].sum())
+            _rate  = _anom / _total * 100
+        else:
+            _rate = None
 
     if _rate is None:
         _pulse_color, _pulse_status, _pulse_speed = "#7BA8CC", "No data loaded", 4.0
@@ -758,6 +761,7 @@ elif '📤 Upload & Detect' in page:
         n_anom   = int(results['ensemble_pred'].sum())
         n_normal = n_total - n_anom
         rate     = n_anom / n_total * 100 if n_total else 0
+        st.session_state['last_upload_rate'] = rate
 
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("🔍 Total Flows", f"{n_total:,}")
