@@ -196,26 +196,6 @@ def load_iot23_results():
     except:
         return None
 
-@st.cache_data
-def load_live_capture():
-    """Load and preprocess live simulation capture"""
-    try:
-        df = pd.read_csv('live_capture.csv')
-        df = df.dropna(subset=['ip.src', 'ip.dst'])
-        le = LabelEncoder()
-        df['ip.proto_enc'] = le.fit_transform(df['ip.proto'].astype(str))
-        flags_map = {'0x0002': 0, '0x0012': 1, '0x0010': 2, '0x0018': 3,
-                     '0x0011': 4, '0x0014': 5, '0x0004': 6}
-        df['tcp.flags_enc'] = df['tcp.flags'].map(flags_map).fillna(7)
-        df['tcp.srcport'] = df['tcp.srcport'].fillna(0)
-        df['tcp.dstport'] = df['tcp.dstport'].fillna(0)
-        scaler = MinMaxScaler()
-        df['frame.len_norm'] = scaler.fit_transform(df[['frame.len']])
-        return df
-    except Exception as e:
-        st.error(f"Could not load live_capture.csv: {e}")
-        return None
-
 @st.cache_resource
 def load_models():
     """Load all trained ML models"""
@@ -233,46 +213,10 @@ def load_models():
             st.warning(f"⚠️ Failed to load {name}: {e}")
     return models
 
-# ── HELPER: score live data ───────────────────────────────────────────────────
-@st.cache_data
-def score_live_data(df_hash):
-    """Run models on live capture data"""
-    df = load_live_capture()
-    if df is None:
-        return None
-    models = load_models()
-    features = ['frame.len', 'ip.proto_enc', 'tcp.srcport', 'tcp.dstport', 'tcp.flags_enc']
-    X = df[features].values
-    results = df.copy()
-
-    if models.get('Isolation Forest'):
-        iso_pred = models['Isolation Forest'].predict(X)
-        results['iso_pred'] = [1 if p == -1 else 0 for p in iso_pred]
-        results['anomaly_score'] = models['Isolation Forest'].score_samples(X)
-    else:
-        results['iso_pred'] = 0
-        results['anomaly_score'] = -0.5
-
-    if models.get('LOF'):
-        try:
-            lof_pred = models['LOF'].predict(X)
-            results['lof_pred'] = [1 if p == -1 else 0 for p in lof_pred]
-        except:
-            results['lof_pred'] = results['iso_pred']
-    else:
-        results['lof_pred'] = results['iso_pred']
-
-    results['rf_pred']  = results['iso_pred']
-    results['xgb_pred'] = results['iso_pred']
-
-    results['ensemble_pred'] = ((results['iso_pred'] + results['lof_pred'] + results['rf_pred']) >= 2).astype(int)
-    results['label'] = results['ensemble_pred'].map({1: 'Malicious', 0: 'Benign'})
-    return results
-
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### 🛡️ PulseGuard")
-    st.markdown("<div style='font-size:11px;color:#5A9FCC;'>Real-time IoT Threat Pulse Monitoring — APM</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:11px;color:#5A9FCC;'>IoT Threat Pulse Monitor — APM</div>", unsafe_allow_html=True)
     st.markdown("---")
 
     role_badge = {"Admin": "🔴", "Analyst": "🟡", "Read-only": "🟢"}.get(st.session_state.role, "")
@@ -294,7 +238,7 @@ with st.sidebar:
     }
 
     st.markdown("<div class='info-label'>Data Source</div>", unsafe_allow_html=True)
-    data_source = st.selectbox("Select Data Source", ["IoT-23 Dataset (MN690)", "Live Simulation Capture (MN692)"])
+    data_source = st.selectbox("Select Data Source", ["IoT-23 Dataset (MN690)"])
 
     st.markdown("---")
     st.markdown("<div class='info-label'>System Status</div>", unsafe_allow_html=True)
@@ -305,10 +249,7 @@ with st.sidebar:
     if 'last_upload_rate' in st.session_state:
         _rate = st.session_state['last_upload_rate']
     else:
-        if data_source == "IoT-23 Dataset (MN690)":
-            _pulse_df = load_iot23_results()
-        else:
-            _pulse_df = score_live_data(hash("live"))
+        _pulse_df = load_iot23_results()
 
         if _pulse_df is not None and 'ensemble_pred' in _pulse_df.columns and len(_pulse_df) > 0:
             _total = len(_pulse_df)
@@ -512,9 +453,6 @@ if '📊 Overview Dashboard' in page:
     elif data_source == "IoT-23 Dataset (MN690)":
         df = load_iot23_results()
         source_label = "IoT-23 Dataset — 23 CSV files from Stratosphere Laboratory, CTU Prague"
-    else:
-        df = score_live_data(hash("live"))
-        source_label = "Live Simulation Capture — Kali Linux attack vs Metasploitable2 (tshark)"
 
     if df is None:
         st.error("Could not load data. Please ensure results.csv or live_capture.csv is in the same folder.")
@@ -807,106 +745,6 @@ elif '📤 Upload & Detect' in page:
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 3 — LIVE SIMULATION FEED
 # ══════════════════════════════════════════════════════════════════════════════
-elif '🔴 Live Simulation Feed' in page:
-    st.markdown("## 🔴 Live Attack Simulation Feed")
-    st.markdown("<div style='color:#5A9FCC;font-size:13px;'>Data captured from Kali Linux → Metasploitable2 simulation using tshark on Ubuntu</div>", unsafe_allow_html=True)
-    st.markdown("---")
-
-    df_live = score_live_data(hash("live"))
-    if df_live is None:
-        st.warning("live_capture.csv not found. Place your tshark-generated capture file in the same folder as dashboard.py")
-        st.code("""
-# On Ubuntu VM — capture the simulation:
-sudo tshark -i eth0 -w simulation_capture.pcap
-
-# Then convert to CSV:
-tshark -r simulation_capture.pcap -T fields \\
-  -e frame.time_relative -e ip.src -e ip.dst \\
-  -e tcp.srcport -e tcp.dstport -e frame.len \\
-  -e ip.proto -e tcp.flags \\
-  -E header=y -E separator=, > live_capture.csv
-        """, language='bash')
-        st.stop()
-
-    c1, c2, c3, c4 = st.columns(4)
-    n_total = len(df_live)
-    n_anom  = int(df_live['ensemble_pred'].sum())
-    n_src   = df_live['ip.src'].nunique()
-    rate    = n_anom / n_total * 100
-    c1.metric("📦 Packets Captured", f"{n_total:,}", help=TOOLTIP['frame.len'])
-    c2.metric("🚨 Anomalous Packets", f"{n_anom:,}", delta=f"{rate:.1f}%", delta_color="inverse")
-    c3.metric("🌐 Unique Source IPs", f"{n_src}", help=TOOLTIP['ip.src'])
-    c4.metric("⏱️ Capture Duration", f"{df_live['frame.time_relative'].max():.1f}s" if 'frame.time_relative' in df_live.columns else "N/A")
-
-    st.markdown("---")
-
-    st.markdown("#### 📡 Live Packet Flow — Anomaly Score Over Capture Time")
-    st.markdown(f"<div class='info-label'>{TOOLTIP['anomaly_score']} &nbsp;|&nbsp; {'Time: seconds since capture began'}</div>", unsafe_allow_html=True)
-
-    if 'frame.time_relative' in df_live.columns and 'anomaly_score' in df_live.columns:
-        placeholder = st.empty()
-        run_live = st.checkbox("▶ Simulate live feed (replay capture in real-time)", value=False)
-
-        if run_live:
-            df_sorted = df_live.sort_values('frame.time_relative').reset_index(drop=True)
-            step = max(1, len(df_sorted) // 50)
-            for i in range(step, len(df_sorted)+1, step):
-                chunk = df_sorted.iloc[:i]
-                fig_live = go.Figure()
-                for label, color in [('Benign', COL_BEN), ('Malicious', COL_MAL)]:
-                    sub = chunk[chunk['label'] == label]
-                    fig_live.add_trace(go.Scatter(
-                        x=sub['frame.time_relative'], y=sub['anomaly_score'],
-                        mode='markers', name=label,
-                        marker=dict(color=color, size=4, opacity=0.7)
-                    ))
-                fig_live.add_hline(y=-0.5, line_dash='dash', line_color=COL_AMB,
-                                   annotation_text="⚠️ Threshold")
-                fig_live.update_layout(**PLOT_LAYOUT,
-                                       xaxis_title="Capture Time (s) ℹ️",
-                                       yaxis_title="Anomaly Score ℹ️",
-                                       title=f"Packets analysed: {i:,} / {len(df_sorted):,}")
-                placeholder.plotly_chart(fig_live, use_container_width=True)
-                time.sleep(0.05)
-        else:
-            fig_static = go.Figure()
-            for label, color in [('Benign', COL_BEN), ('Malicious', COL_MAL)]:
-                sub = df_live[df_live['label'] == label]
-                fig_static.add_trace(go.Scatter(
-                    x=sub['frame.time_relative'], y=sub['anomaly_score'],
-                    mode='markers', name=label,
-                    marker=dict(color=color, size=4, opacity=0.6)
-                ))
-            fig_static.add_hline(y=-0.5, line_dash='dash', line_color=COL_AMB,
-                                  annotation_text="⚠️ Alert Threshold")
-            fig_static.update_layout(**PLOT_LAYOUT,
-                                     xaxis_title="Capture Time (seconds) ℹ️",
-                                     yaxis_title="Anomaly Score ℹ️")
-            placeholder.plotly_chart(fig_static, use_container_width=True)
-
-    st.markdown("---")
-
-    st.markdown("#### 🌐 Top Suspicious Source IPs")
-    st.markdown(f"<div class='info-label'>{TOOLTIP['ip.src']}</div>", unsafe_allow_html=True)
-    if 'ip.src' in df_live.columns and 'ensemble_pred' in df_live.columns:
-        ip_counts = df_live[df_live['ensemble_pred']==1]['ip.src'].value_counts().head(15).reset_index()
-        ip_counts.columns = ['IP Address ℹ️', 'Anomalous Packets']
-        fig_ip = px.bar(ip_counts, x='Anomalous Packets', y='IP Address ℹ️',
-                        orientation='h', color='Anomalous Packets',
-                        color_continuous_scale='Reds')
-        fig_ip.update_layout(**PLOT_LAYOUT, coloraxis_showscale=False)
-        st.plotly_chart(fig_ip, use_container_width=True)
-
-    st.markdown("#### 📋 Anomalous Packets Detected")
-    show_live = ['frame.time_relative','ip.src','ip.dst','tcp.srcport','tcp.dstport','frame.len','ip.proto','tcp.flags','anomaly_score','label']
-    show_live = [c for c in show_live if c in df_live.columns]
-    anom_live = df_live[df_live['ensemble_pred']==1][show_live].sort_values('anomaly_score').head(50)
-    rename_map_live = {c: f"{c} ℹ️" if c in TOOLTIP else c for c in show_live}
-    st.dataframe(anom_live.rename(columns=rename_map_live), use_container_width=True, height=300)
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE 4 — MODEL COMPARISON
-# ══════════════════════════════════════════════════════════════════════════════
 elif '🧠 Model Comparison' in page:
     st.markdown("## 🧠 ML Model Comparison — MN692")
     st.markdown("<div style='color:#5A9FCC;font-size:13px;'>Comparing unsupervised (MN690) vs supervised (MN692) approaches to improve accuracy beyond 51.5%</div>", unsafe_allow_html=True)
@@ -1131,7 +969,7 @@ elif '📄 Compliance Report' in page:
             <div class='info-value'>
             <b>Generated:</b> {datetime.now().strftime('%d %B %Y %H:%M:%S')}<br>
             <b>Reporting Period:</b> Current session<br>
-            <b>Data Source:</b> {'IoT-23 Dataset' if data_source == 'IoT-23 Dataset (MN690)' else 'Live Simulation Capture'}<br>
+            <b>Data Source:</b> IoT-23 Dataset<br>
             <b>Models:</b> Isolation Forest + LOF + Random Forest + XGBoost Ensemble<br>
             <b>Status:</b> <span class='badge-green'>Active</span>
             </div>
