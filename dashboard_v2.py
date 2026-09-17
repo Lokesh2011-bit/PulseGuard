@@ -72,7 +72,7 @@ if not st.session_state.authenticated:
         /* Brand header block above the form */
         .pg-login-brand-wrap {
             max-width: 400px;
-            margin: 8vh auto 0 auto;
+            margin: 8px auto 0 auto;
             text-align: center;
         }
         .pg-login-brand {
