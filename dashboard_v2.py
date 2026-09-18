@@ -5,6 +5,7 @@ Real-time anomaly detection for IoT network traffic.
 """
 
 import streamlit as st
+st.caption('BUILD CHECK: v-fix-20260918-1600')
 import pandas as pd
 import numpy as np
 import plotly.express as px
