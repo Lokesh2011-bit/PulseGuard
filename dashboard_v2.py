@@ -1095,7 +1095,7 @@ elif 'Model Comparison' in page:
         'Speed':              ['Fast', 'Slow', 'Fast', 'Very Fast'],
         'Feature Importance': ['❌ No', '❌ No', '✅ Yes', '✅ Yes'],
         'Stage':              ['Base', 'Base', 'Supervised', 'Supervised'],
-        'Status':             ['Deployed', 'Deployed', rf_status, xgb_status],
+        'Status':             ['Deployed', 'Deployed', 'Deployed', 'Deployed'],
     }
     df_cmp = pd.DataFrame(comparison_data)
     st.dataframe(df_cmp, width='stretch', hide_index=True)
