@@ -353,7 +353,7 @@ TOOLTIP = {
     'proto':             'ℹ️ Protocol: Network protocol used (TCP=6, UDP=17, ICMP=1)',
     'conn_state':        'ℹ️ Conn State: Connection state (0=established, 1=rejected, etc.)',
     'anomaly_score':     'ℹ️ Anomaly Score: Lower (more negative) = more suspicious. Isolation Forest output.',
-    'ensemble_pred':     'ℹ️ Ensemble Prediction: 1 = anomalous (majority vote across models), 0 = normal',
+    'ensemble_pred':     'ℹ️ Ensemble Prediction: 1 = malicious (Random Forest AND XGBoost both agree), 0 = normal',
     'frame.len':         'ℹ️ Frame Length: Size of the captured packet in bytes',
     'ip.proto':          'ℹ️ IP Protocol: IP-layer protocol number (6=TCP, 17=UDP)',
     'tcp.srcport':       'ℹ️ Source Port: TCP port the packet originated from',
@@ -1054,7 +1054,7 @@ elif 'Model Comparison' in page:
         <div class='info-card'>
             <div class='info-label'>Unsupervised — Local Outlier Factor</div>
             <div class='info-value'>
-            <b>Role:</b> Ensemble partner<br>
+            <b>Role:</b> Comparison model (not used in final ensemble decision)<br>
             <b>Strength:</b> Local density-based detection<br>
             <b>Weakness:</b> Slower on large data<br>
             <b>Status:</b> Deployed
@@ -1065,7 +1065,7 @@ elif 'Model Comparison' in page:
         <div class='info-card'>
             <div class='info-label'>Supervised — Random Forest</div>
             <div class='info-value'>
-            <b>Role:</b> Classifier<br>
+            <b>Role:</b> Classifier (ensemble decision-maker)<br>
             <b>Strength:</b> Feature importance; high precision<br>
             <b>Weakness:</b> Requires labelled training data<br>
             <b>Status:</b> {rf_status}
@@ -1076,7 +1076,7 @@ elif 'Model Comparison' in page:
         <div class='info-card'>
             <div class='info-label'>Supervised — XGBoost</div>
             <div class='info-value'>
-            <b>Role:</b> Classifier<br>
+            <b>Role:</b> Classifier (ensemble decision-maker)<br>
             <b>Strength:</b> Fast inference on tabular data<br>
             <b>Weakness:</b> Requires labelled training data<br>
             <b>Status:</b> {xgb_status}
@@ -1119,7 +1119,7 @@ elif 'Model Comparison' in page:
             ('Local Outlier Factor', 'lof_pred'),
             ('Random Forest', 'rf_pred'),
             ('XGBoost', 'xgb_pred'),
-            ('Ensemble (≥2 of 4)', 'ensemble_pred'),
+            ('Ensemble (RF AND XGBoost)', 'ensemble_pred'),
         ]
         _rows = []
         for _name, _col in _model_cols:
@@ -1287,7 +1287,8 @@ elif 'Compliance Report' in page:
             <b>Generated:</b> {datetime.now().strftime('%d %B %Y %H:%M:%S')}<br>
             <b>Reporting Period:</b> Current session<br>
             <b>Data Source:</b> IoT-23 Dataset<br>
-            <b>Models:</b> Isolation Forest + LOF + Random Forest + XGBoost Ensemble<br>
+            <b>Models compared:</b> Isolation Forest, LOF, Random Forest, XGBoost<br>
+            <b>Ensemble decision:</b> Random Forest AND XGBoost<br>
             <b>Status:</b> <span class='badge-green'>Active</span>
             </div>
         </div>""", unsafe_allow_html=True)
