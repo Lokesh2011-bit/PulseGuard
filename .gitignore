@@ -1,2 +1,5 @@
 .streamlit/secrets.toml
 .DS_Store
+*.bak*
+*.pre_*
+__pycache__/
