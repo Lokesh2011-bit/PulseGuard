@@ -700,7 +700,7 @@ def score_uploaded_data(df):
     else:
         results['xgb_pred'] = results['iso_pred']
 
-    results['ensemble_pred'] = ((results['iso_pred'] + results['lof_pred'] + results['rf_pred'] + results['xgb_pred']) >= 2).astype(int)
+    results['ensemble_pred'] = ((results['rf_pred'] == 1) & (results['xgb_pred'] == 1)).astype(int)
     results['label'] = results['ensemble_pred'].map({1: 'Malicious', 0: 'Benign'})
     return results
 
