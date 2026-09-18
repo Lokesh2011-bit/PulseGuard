@@ -359,12 +359,12 @@
       <div class="step">
         <div class="num">02</div>
         <h3>Learn</h3>
-        <p>A model trained on real attack traffic — port scans, floods, brute force — learns to tell benign flows from malicious ones.</p>
+        <p>A Random Forest and XGBoost ensemble learns the patterns that separate benign flows from malicious ones in IoT-23's labelled examples — a flow is only flagged malicious when both models independently agree.</p>
       </div>
       <div class="step">
         <div class="num">03</div>
         <h3>Flag</h3>
-        <p>The instant a flow strays from baseline, it's scored, ranked by severity, and surfaced on the dashboard — before damage is done.</p>
+        <p>Each flow is scored by the Random Forest + XGBoost ensemble. Only when both models independently agree a flow is malicious is it flagged and surfaced on the dashboard with its confidence score.</p>
       </div>
     </div>
   </div>
@@ -375,7 +375,7 @@
     <div class="metric-row">
       <div class="metric"><span class="num">91.9%</span><span class="label">Detection accuracy on unseen traffic</span></div>
       <div class="metric"><span class="num">97.5%</span><span class="label">Recall — real attacks caught</span></div>
-      <div class="metric"><span class="num">173,114</span><span class="label">Network flows processed</span></div>
+      <div class="metric"><span class="num">71,776</span><span class="label">Network flows processed</span></div>
       <div class="metric"><span class="num">21,533</span><span class="label">Held-out flows used to test it</span></div>
     </div>
   </div>
