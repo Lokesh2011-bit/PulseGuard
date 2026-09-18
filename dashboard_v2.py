@@ -5,17 +5,7 @@ Real-time anomaly detection for IoT network traffic.
 """
 
 import streamlit as st
-st.caption('BUILD CHECK: v-fix-20260918-1600')
-import hashlib
-import pandas as pd
-try:
-    with open('results.csv', 'rb') as _f:
-        _filehash = hashlib.md5(_f.read()).hexdigest()[:8]
-    _diag_df = pd.read_csv('results.csv')
-    _diag_rate = _diag_df['ensemble_pred'].mean() * 100
-    st.caption(f'DIAG: file_hash={_filehash} rows={len(_diag_df)} live_alert_rate={_diag_rate:.2f}%')
-except Exception as _e:
-    st.caption(f'DIAG ERROR: {_e}')
+
 
 import pandas as pd
 import numpy as np
