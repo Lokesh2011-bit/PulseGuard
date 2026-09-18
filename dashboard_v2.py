@@ -349,21 +349,21 @@ FEATURES_IOT23   = ['duration', 'orig_bytes', 'resp_bytes', 'proto', 'conn_state
 FEATURES_LIVE    = ['frame.len', 'ip.proto', 'tcp.srcport', 'tcp.dstport']
 
 TOOLTIP = {
-    'duration':          'ℹ️ Duration: Length of the network connection in seconds',
-    'orig_bytes':        'ℹ️ Orig Bytes: Bytes sent from the source IoT device',
-    'resp_bytes':        'ℹ️ Resp Bytes: Bytes received by the source IoT device',
-    'proto':             'ℹ️ Protocol: Network protocol used (TCP=6, UDP=17, ICMP=1)',
-    'conn_state':        'ℹ️ Conn State: Connection state (0=established, 1=rejected, etc.)',
-    'anomaly_score':     'ℹ️ Anomaly Score: Lower (more negative) = more suspicious. Isolation Forest output.',
-    'ensemble_pred':     'ℹ️ Ensemble Prediction: 1 = malicious (Random Forest AND XGBoost both agree), 0 = normal',
-    'frame.len':         'ℹ️ Frame Length: Size of the captured packet in bytes',
-    'ip.proto':          'ℹ️ IP Protocol: IP-layer protocol number (6=TCP, 17=UDP)',
-    'tcp.srcport':       'ℹ️ Source Port: TCP port the packet originated from',
-    'tcp.dstport':       'ℹ️ Destination Port: TCP port the packet was sent to',
-    'ip.src':            'ℹ️ Source IP: IP address of the sending machine',
-    'ip.dst':            'ℹ️ Destination IP: IP address of the receiving machine',
-    'rf_pred':           'ℹ️ Random Forest Prediction: Supervised ML output (1=Malicious, 0=Benign)',
-    'label':             'ℹ️ Label: Ground truth traffic classification from IoT-23 dataset',
+    'duration':          'ⓘ Duration: Length of the network connection in seconds',
+    'orig_bytes':        'ⓘ Orig Bytes: Bytes sent from the source IoT device',
+    'resp_bytes':        'ⓘ Resp Bytes: Bytes received by the source IoT device',
+    'proto':             'ⓘ Protocol: Network protocol used (TCP=6, UDP=17, ICMP=1)',
+    'conn_state':        'ⓘ Conn State: Connection state (0=established, 1=rejected, etc.)',
+    'anomaly_score':     'ⓘ Anomaly Score: Lower (more negative) = more suspicious. Isolation Forest output.',
+    'ensemble_pred':     'ⓘ Ensemble Prediction: 1 = malicious (Random Forest AND XGBoost both agree), 0 = normal',
+    'frame.len':         'ⓘ Frame Length: Size of the captured packet in bytes',
+    'ip.proto':          'ⓘ IP Protocol: IP-layer protocol number (6=TCP, 17=UDP)',
+    'tcp.srcport':       'ⓘ Source Port: TCP port the packet originated from',
+    'tcp.dstport':       'ⓘ Destination Port: TCP port the packet was sent to',
+    'ip.src':            'ⓘ Source IP: IP address of the sending machine',
+    'ip.dst':            'ⓘ Destination IP: IP address of the receiving machine',
+    'rf_pred':           'ⓘ Random Forest Prediction: Supervised ML output (1=Malicious, 0=Benign)',
+    'label':             'ⓘ Label: Ground truth traffic classification from IoT-23 dataset',
 }
 
 # ── DATA LOADING ──────────────────────────────────────────────────────────────
@@ -796,7 +796,7 @@ if 'Overview Dashboard' in page:
                 nbins=60
             )
             fig_hist.update_layout(**PLOT_LAYOUT)
-            fig_hist.update_layout(xaxis_title="Anomaly Score ℹ️ (lower = more suspicious)")
+            fig_hist.update_layout(xaxis_title="Anomaly Score ⓘ (lower = more suspicious)")
             st.plotly_chart(fig_hist, width='stretch')
         else:
             st.info("Anomaly scores not available for this data source")
@@ -812,7 +812,7 @@ if 'Overview Dashboard' in page:
                 y=proto_counts.values,
                 color=proto_counts.values,
                 color_continuous_scale='Blues',
-                labels={'x': 'Protocol ℹ️', 'y': 'Count'}
+                labels={'x': 'Protocol ⓘ', 'y': 'Count'}
             )
             fig_proto.update_layout(**PLOT_LAYOUT)
             fig_proto.update_layout(coloraxis_showscale=False)
@@ -837,8 +837,8 @@ if 'Overview Dashboard' in page:
         fig_line.add_hline(y=-0.5, line_dash='dash', line_color=COL_AMB,
                            annotation_text="⚠️ Alert Threshold")
         fig_line.update_layout(**PLOT_LAYOUT,
-                               xaxis_title="Time (seconds) ℹ️ — relative to capture start",
-                               yaxis_title="Anomaly Score ℹ️")
+                               xaxis_title="Time (seconds) ⓘ — relative to capture start",
+                               yaxis_title="Anomaly Score ⓘ")
         st.plotly_chart(fig_line, width='stretch')
     elif 'anomaly_score' in df.columns:
         df_sample = df[['anomaly_score', 'ensemble_pred']].copy()
@@ -856,8 +856,8 @@ if 'Overview Dashboard' in page:
         fig_line.add_hline(y=-0.5, line_dash='dash', line_color=COL_AMB,
                            annotation_text="⚠️ Alert Threshold")
         fig_line.update_layout(**PLOT_LAYOUT,
-                               xaxis_title="Flow Index ℹ️ (sequential packet order)",
-                               yaxis_title="Anomaly Score ℹ️")
+                               xaxis_title="Flow Index ⓘ (sequential packet order)",
+                               yaxis_title="Anomaly Score ⓘ")
         st.plotly_chart(fig_line, width='stretch')
 
     st.markdown("---")
@@ -883,7 +883,7 @@ if 'Overview Dashboard' in page:
 
     tooltip_cols = [c for c in available if c in TOOLTIP]
     if tooltip_cols:
-        tip_text = " &nbsp;|&nbsp; ".join([f"<b>{c}</b>: {TOOLTIP[c].replace('ℹ️','')}" for c in tooltip_cols[:4]])
+        tip_text = " &nbsp;|&nbsp; ".join([f"<b>{c}</b>: {TOOLTIP[c].replace('ⓘ','')}" for c in tooltip_cols[:4]])
         st.markdown(f"<div style='font-size:10px;color:#8B93A1;margin-bottom:6px;'>{tip_text}</div>", unsafe_allow_html=True)
 
     rename_map = {
@@ -1186,19 +1186,19 @@ elif 'Device Baselines' in page:
             'name': '📷 IP Camera (CCTV)',
             'normal': {
                 'Packet Rate': '2–4 Mbps continuous stream',
-                'Protocol ℹ️': 'UDP only',
+                'Protocol ⓘ': 'UDP only',
                 'Destination': '1 internal recording server',
                 'External Connections': 'None',
                 'Active Hours': '24/7 continuous',
-                'Avg Packet Size ℹ️': '1,200–1,500 bytes (video stream)'
+                'Avg Packet Size ⓘ': '1,200–1,500 bytes (video stream)'
             },
             'attack': {
                 'Packet Rate': '18 Mbps spike (5x normal)',
-                'Protocol ℹ️': 'TCP — unexpected for camera',
+                'Protocol ⓘ': 'TCP — unexpected for camera',
                 'Destination': 'Unknown overseas IP',
                 'External Connections': 'Outbound data exfiltration',
                 'Active Hours': 'Spike at 2am outside normal ops',
-                'Avg Packet Size ℹ️': 'Large encrypted payload >8,000 bytes'
+                'Avg Packet Size ⓘ': 'Large encrypted payload >8,000 bytes'
             },
             'threat': 'Data Exfiltration — patient/employee data sent to attacker server'
         },
@@ -1206,19 +1206,19 @@ elif 'Device Baselines' in page:
             'name': '🔐 Smart Door Lock (Access Control)',
             'normal': {
                 'Packet Rate': '10–15 packets per hour',
-                'Protocol ℹ️': 'TCP — authentication protocol',
+                'Protocol ⓘ': 'TCP — authentication protocol',
                 'Destination': '2 known internal auth servers',
                 'External Connections': 'None',
                 'Active Hours': '8am–6pm business hours only',
-                'Avg Packet Size ℹ️': '45 bytes per packet'
+                'Avg Packet Size ⓘ': '45 bytes per packet'
             },
             'attack': {
                 'Packet Rate': '1,000+ packets per minute (SYN flood)',
-                'Protocol ℹ️': 'TCP SYN — 0x0002 flag dominant',
+                'Protocol ⓘ': 'TCP SYN — 0x0002 flag dominant',
                 'Destination': 'Unknown IP scanning 47 internal hosts',
                 'External Connections': 'Lateral movement across network',
                 'Active Hours': '2am — completely outside business hours',
-                'Avg Packet Size ℹ️': '800+ bytes — malicious payload'
+                'Avg Packet Size ⓘ': '800+ bytes — malicious payload'
             },
             'threat': 'Lateral Movement — attacker using door lock to traverse internal network'
         },
@@ -1226,19 +1226,19 @@ elif 'Device Baselines' in page:
             'name': '🌡️ Smart Sensor (Environment Monitor)',
             'normal': {
                 'Packet Rate': '1 report every 5 minutes',
-                'Protocol ℹ️': 'MQTT — lightweight IoT protocol',
+                'Protocol ⓘ': 'MQTT — lightweight IoT protocol',
                 'Destination': '1 MQTT broker server',
                 'External Connections': 'None',
                 'Active Hours': 'Continuous low-frequency reporting',
-                'Avg Packet Size ℹ️': '20–30 bytes per report'
+                'Avg Packet Size ⓘ': '20–30 bytes per report'
             },
             'attack': {
                 'Packet Rate': '1 packet every 2 seconds (150x normal)',
-                'Protocol ℹ️': 'TCP — protocol shift detected',
+                'Protocol ⓘ': 'TCP — protocol shift detected',
                 'Destination': 'Multiple unknown C&C destinations',
                 'External Connections': 'Botnet C&C communication',
                 'Active Hours': 'Sustained unusual activity',
-                'Avg Packet Size ℹ️': '800 bytes (30x larger than normal)'
+                'Avg Packet Size ⓘ': '800 bytes (30x larger than normal)'
             },
             'threat': 'Botnet Recruitment — sensor compromised and controlled by attacker'
         },
