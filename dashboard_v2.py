@@ -1083,7 +1083,8 @@ elif 'Model Comparison' in page:
             </div>
         </div>""", unsafe_allow_html=True)
 
-        st.markdown("#### Algorithm Comparison Summary")
+    st.markdown("---")
+    st.markdown("#### Algorithm Comparison Summary")
     comparison_data = {
         'Algorithm':          ['Isolation Forest', 'Local Outlier Factor', 'Random Forest', 'XGBoost'],
         'Type':               ['Unsupervised', 'Unsupervised', 'Supervised', 'Supervised'],
