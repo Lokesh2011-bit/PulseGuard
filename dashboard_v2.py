@@ -276,7 +276,7 @@ button[kind="secondary"]:hover {
 @keyframes ekg-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .live-badge { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
 .live-badge-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-mute); letter-spacing: 0.1em; text-transform: uppercase; }
-div[data-testid="column"] button[kind="primary"]{
+[class*="st-key-nav_"] button[kind="primary"]{
     background: transparent !important;
     color: var(--signal) !important;
     border: none !important;
@@ -285,7 +285,7 @@ div[data-testid="column"] button[kind="primary"]{
     font-weight: 600 !important;
     font-family: 'IBM Plex Sans', sans-serif !important;
 }
-div[data-testid="column"] button[kind="secondary"]{
+[class*="st-key-nav_"] button[kind="secondary"]{
     background: transparent !important;
     color: var(--text-mute) !important;
     border: none !important;
@@ -293,7 +293,7 @@ div[data-testid="column"] button[kind="secondary"]{
     border-radius: 0 !important;
     font-family: 'IBM Plex Sans', sans-serif !important;
 }
-div[data-testid="column"] button[kind="secondary"]:hover{
+[class*="st-key-nav_"] button[kind="secondary"]:hover{
     color: var(--text) !important;
     border-bottom-color: var(--line) !important;
 }
@@ -352,8 +352,8 @@ TOOLTIP = {
     'duration':          'ⓘ Duration: Length of the network connection in seconds',
     'orig_bytes':        'ⓘ Orig Bytes: Bytes sent from the source IoT device',
     'resp_bytes':        'ⓘ Resp Bytes: Bytes received by the source IoT device',
-    'proto':             'ⓘ Protocol: Network protocol used (TCP=6, UDP=17, ICMP=1)',
-    'conn_state':        'ⓘ Conn State: Connection state (0=established, 1=rejected, etc.)',
+    'proto':             'ⓘ Protocol: Network protocol, encoded for the models (0 = ICMP, 1 = TCP, 2 = UDP)',
+    'conn_state':        'ⓘ Conn State: Zeek connection state, encoded 0-9 (8 = SF normal completion, 4 = S0 no reply, 1 = REJ rejected)',
     'anomaly_score':     'ⓘ Anomaly Score: Lower (more negative) = more suspicious. Isolation Forest output.',
     'ensemble_pred':     'ⓘ Ensemble Prediction: 1 = malicious (Random Forest AND XGBoost both agree), 0 = normal',
     'frame.len':         'ⓘ Frame Length: Size of the captured packet in bytes',
@@ -365,6 +365,11 @@ TOOLTIP = {
     'rf_pred':           'ⓘ Random Forest Prediction: Supervised ML output (1=Malicious, 0=Benign)',
     'label':             'ⓘ Label: Ensemble classification (Random Forest AND XGBoost)',
 }
+
+def tip(key):
+    """Tooltip text without the leading symbol, for use as hover help."""
+    return TOOLTIP[key].replace('ⓘ ', '')
+
 
 # ── DATA LOADING ──────────────────────────────────────────────────────────────
 @st.cache_data
@@ -740,7 +745,7 @@ if 'Overview Dashboard' in page:
         source_label = "IoT-23 Dataset — 23 CSV files from Stratosphere Laboratory, CTU Prague"
 
     if df is None:
-        st.error("Could not load data. Please ensure results.csv or live_capture.csv is in the same folder.")
+        st.error("Could not load data. Please ensure results.csv is in the same folder.")
         st.stop()
 
     st.markdown(f"<div style='font-size:11px;color:#3A7AAC;margin-bottom:12px;'>📦 Data source: {source_label}</div>", unsafe_allow_html=True)
@@ -751,15 +756,15 @@ if 'Overview Dashboard' in page:
     n_normal = total - n_anom
     rate     = n_anom / total * 100 if total else 0
 
-    col1.metric("Total Flows", f"{total:,}", help=TOOLTIP['duration'])
+    col1.metric("Total Flows", f"{total:,}", help="Number of network flows in the selected data source")
     col2.metric("Anomalies", f"{n_anom:,}", delta=f"{rate:.1f}% alert rate",
-                delta_color="inverse", help=TOOLTIP['ensemble_pred'])
+                delta_color="inverse", help=tip('ensemble_pred'))
     col3.metric("Normal Flows", f"{n_normal:,}", help="Flows classified as benign by the ensemble")
-    col4.metric("Alert Rate", f"{rate:.1f}%", help="Percentage of total flows flagged as anomalous")
+    col4.metric("Alert Rate", f"{rate:.1f}%", help="Percentage of flows classified as malicious by the ensemble (Random Forest AND XGBoost)")
 
     if 'anomaly_score' in df.columns:
         avg_score = df[df['ensemble_pred']==1]['anomaly_score'].mean()
-        col5.metric("Avg Anomaly Score", f"{avg_score:.3f}", help=TOOLTIP['anomaly_score'])
+        col5.metric("Avg Anomaly Score", f"{avg_score:.3f}", help=tip('anomaly_score'))
     else:
         col5.metric("📊 Unique IPs", f"{df['ip.src'].nunique() if 'ip.src' in df.columns else 'N/A'}")
 
@@ -768,8 +773,8 @@ if 'Overview Dashboard' in page:
     c1, c2, c3 = st.columns([1, 1.2, 1])
 
     with c1:
-        st.markdown("#### Traffic Distribution")
-        st.markdown(f"<div class='info-label'>{TOOLTIP.get('label','')}</div>", unsafe_allow_html=True)
+        st.markdown("#### Traffic Distribution",
+                    help="Share of flows the ensemble classified as malicious or benign. A flow is malicious only when Random Forest AND XGBoost both agree.")
         if 'label' in df.columns:
             counts = df['label'].value_counts()
         else:
@@ -785,8 +790,8 @@ if 'Overview Dashboard' in page:
         st.plotly_chart(fig_pie, width='stretch')
 
     with c2:
-        st.markdown("#### Anomaly Score Distribution")
-        st.markdown(f"<div class='info-label'>{TOOLTIP['anomaly_score']}</div>", unsafe_allow_html=True)
+        st.markdown("#### Anomaly Score Distribution",
+                    help="Isolation Forest score per flow: lower (more negative) = more unusual. Colour shows the ensemble decision (RF AND XGBoost), not this score.")
         if 'anomaly_score' in df.columns:
             fig_hist = px.histogram(
                 df, x='anomaly_score',
@@ -796,14 +801,13 @@ if 'Overview Dashboard' in page:
                 nbins=60
             )
             fig_hist.update_layout(**PLOT_LAYOUT)
-            fig_hist.update_layout(xaxis_title="Anomaly Score ⓘ (lower = more suspicious)")
+            fig_hist.update_layout(xaxis_title="Anomaly Score (lower = more suspicious)")
             st.plotly_chart(fig_hist, width='stretch')
         else:
             st.info("Anomaly scores not available for this data source")
 
     with c3:
-        st.markdown("#### Protocol Distribution")
-        st.markdown(f"<div class='info-label'>{TOOLTIP['proto']}</div>", unsafe_allow_html=True)
+        st.markdown("#### Protocol Distribution", help=tip('proto'))
         proto_col = 'proto' if 'proto' in df.columns else 'ip.proto'
         if proto_col in df.columns:
             proto_counts = df[proto_col].value_counts().head(8)
@@ -812,7 +816,7 @@ if 'Overview Dashboard' in page:
                 y=proto_counts.values,
                 color=proto_counts.values,
                 color_continuous_scale='Blues',
-                labels={'x': 'Protocol ⓘ', 'y': 'Count'}
+                labels={'x': 'Protocol', 'y': 'Count'}
             )
             fig_proto.update_layout(**PLOT_LAYOUT)
             fig_proto.update_layout(coloraxis_showscale=False)
@@ -820,8 +824,7 @@ if 'Overview Dashboard' in page:
 
     st.markdown("---")
 
-    st.markdown("#### Anomaly Score Over Time")
-    st.markdown(f"<div class='info-label'>{TOOLTIP['anomaly_score']}</div>", unsafe_allow_html=True)
+    st.markdown("#### Anomaly Score Over Time", help=tip('anomaly_score'))
 
     time_col = 'frame.time_relative' if 'frame.time_relative' in df.columns else None
     if time_col and 'anomaly_score' in df.columns:
@@ -837,8 +840,8 @@ if 'Overview Dashboard' in page:
         fig_line.add_hline(y=-0.5, line_dash='dash', line_color=COL_AMB,
                            annotation_text="⚠️ Alert Threshold")
         fig_line.update_layout(**PLOT_LAYOUT,
-                               xaxis_title="Time (seconds) ⓘ — relative to capture start",
-                               yaxis_title="Anomaly Score ⓘ")
+                               xaxis_title="Time (seconds) — relative to capture start",
+                               yaxis_title="Anomaly Score")
         st.plotly_chart(fig_line, width='stretch')
     elif 'anomaly_score' in df.columns:
         df_sample = df[['anomaly_score', 'ensemble_pred']].copy()
@@ -856,8 +859,8 @@ if 'Overview Dashboard' in page:
         fig_line.add_hline(y=-0.5, line_dash='dash', line_color=COL_AMB,
                            annotation_text="⚠️ Alert Threshold")
         fig_line.update_layout(**PLOT_LAYOUT,
-                               xaxis_title="Flow Index ⓘ (sequential packet order)",
-                               yaxis_title="Anomaly Score ⓘ")
+                               xaxis_title="Flow Index (sequential packet order)",
+                               yaxis_title="Anomaly Score")
         st.plotly_chart(fig_line, width='stretch')
 
     st.markdown("---")
@@ -881,35 +884,43 @@ if 'Overview Dashboard' in page:
             else: return "🟡 Medium"
         anom_df.insert(0, 'Severity', anom_df['anomaly_score'].apply(severity))
 
-    tooltip_cols = [c for c in available if c in TOOLTIP]
-    if tooltip_cols:
-        tip_text = " &nbsp;|&nbsp; ".join([f"<b>{c}</b>: {TOOLTIP[c].replace('ⓘ','')}" for c in tooltip_cols[:4]])
-        st.markdown(f"<div style='font-size:10px;color:#8B93A1;margin-bottom:6px;'>{tip_text}</div>", unsafe_allow_html=True)
-
     rename_map = {
-        'duration':      'DURATION ⓘ',
-        'orig_bytes':    'ORIG BYTES ⓘ',
-        'resp_bytes':    'RESP BYTES ⓘ',
-        'proto':         'PROTO ⓘ',
-        'conn_state':    'CONN STATE ⓘ',
-        'label':         'LABEL ⓘ',
-        'anomaly_score': 'ANOMALY SCORE ⓘ',
-        'Severity':      'SEVERITY ⓘ',
+        'duration':      'DURATION',
+        'orig_bytes':    'ORIG BYTES',
+        'resp_bytes':    'RESP BYTES',
+        'proto':         'PROTO',
+        'conn_state':    'CONN STATE',
+        'label':         'LABEL',
+        'anomaly_score': 'ANOMALY SCORE',
+        'Severity':      'SEVERITY',
     }
-    st.dataframe(anom_df.rename(columns=rename_map), width='stretch', height=320)
+    col_help = {
+        'SEVERITY':      'Risk level from the anomaly score: Critical (< -0.65), High (< -0.50), otherwise Medium',
+        'DURATION':      tip('duration'),
+        'ORIG BYTES':    tip('orig_bytes'),
+        'RESP BYTES':    tip('resp_bytes'),
+        'PROTO':         tip('proto'),
+        'CONN STATE':    tip('conn_state'),
+        'LABEL':         tip('label'),
+        'ANOMALY SCORE': tip('anomaly_score'),
+    }
+    shown_df = anom_df.rename(columns=rename_map)
+    col_cfg = {c: st.column_config.Column(c, help=col_help[c])
+               for c in shown_df.columns if c in col_help}
+    st.dataframe(shown_df, width='stretch', height=320, column_config=col_cfg)
 
-    with st.expander("ⓘ Click here to see what each column means"):
+    with st.expander("What each column means"):
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("**SEVERITY ⓘ** — Risk level: 🔴 Critical (<-0.65) · 🟠 High (<-0.50) · 🟡 Medium")
-            st.markdown("**DURATION ⓘ** — How long the network connection lasted in seconds")
-            st.markdown("**ORIG BYTES ⓘ** — Bytes sent FROM the IoT device to destination")
-            st.markdown("**RESP BYTES ⓘ** — Bytes received BY the IoT device from destination")
+            st.markdown("**SEVERITY** — Risk level: 🔴 Critical (<-0.65) · 🟠 High (<-0.50) · 🟡 Medium")
+            st.markdown("**DURATION** — How long the network connection lasted in seconds")
+            st.markdown("**ORIG BYTES** — Bytes sent FROM the IoT device to destination")
+            st.markdown("**RESP BYTES** — Bytes received BY the IoT device from destination")
         with col2:
-            st.markdown("**PROTO ⓘ** — Network protocol: TCP=6, UDP=17, ICMP=1")
-            st.markdown("**CONN STATE ⓘ** — Connection state: 0=established, 1=rejected, 2=reset")
-            st.markdown("**LABEL ⓘ** — Final classification: Malicious or Benign")
-            st.markdown("**ANOMALY SCORE ⓘ** — Lower = more suspicious. Isolation Forest output score.")
+            st.markdown("**PROTO** — Network protocol, encoded: 0 = ICMP, 1 = TCP, 2 = UDP")
+            st.markdown("**CONN STATE** — Zeek connection state, encoded 0-9 (8 = SF normal, 4 = S0 no reply, 1 = REJ rejected)")
+            st.markdown("**LABEL** — Final classification: Malicious or Benign")
+            st.markdown("**ANOMALY SCORE** — Lower = more suspicious. Isolation Forest output score.")
 
     if st.session_state.role in ("Admin", "Analyst"):
         dl_df = df[df['ensemble_pred'] == 1][available].copy() if 'ensemble_pred' in df.columns else df
@@ -1028,7 +1039,7 @@ elif 'Upload & Detect' in page:
             st.info("🔒 Downloading results requires Analyst or Admin access.")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE 3 — LIVE SIMULATION FEED
+# PAGE 3 — MODEL COMPARISON
 # ══════════════════════════════════════════════════════════════════════════════
 elif 'Model Comparison' in page:
     st.markdown("## ML Model Comparison")
@@ -1036,8 +1047,8 @@ elif 'Model Comparison' in page:
     st.markdown("---")
 
     models = load_models()
-    rf_status  = 'Trained' if models.get('Random Forest') else 'Not yet trained'
-    xgb_status = 'Trained' if models.get('XGBoost')       else 'Not yet trained'
+    rf_status  = 'Deployed' if models.get('Random Forest') else 'Not yet trained'
+    xgb_status = 'Deployed' if models.get('XGBoost')       else 'Not yet trained'
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -1045,7 +1056,7 @@ elif 'Model Comparison' in page:
         <div class='info-card'>
             <div class='info-label'>Unsupervised — Isolation Forest</div>
             <div class='info-value'>
-            <b>Role:</b> Primary anomaly detector<br>
+            <b>Role:</b> Comparison model (its score feeds severity, not the ensemble decision)<br>
             <b>Strength:</b> No labels required; fast<br>
             <b>Weakness:</b> Sensitive to contamination setting<br>
             <b>Status:</b> Deployed
@@ -1186,19 +1197,19 @@ elif 'Device Baselines' in page:
             'name': '📷 IP Camera (CCTV)',
             'normal': {
                 'Packet Rate': '2–4 Mbps continuous stream',
-                'Protocol ⓘ': 'UDP only',
+                'Protocol': 'UDP only',
                 'Destination': '1 internal recording server',
                 'External Connections': 'None',
                 'Active Hours': '24/7 continuous',
-                'Avg Packet Size ⓘ': '1,200–1,500 bytes (video stream)'
+                'Avg Packet Size': '1,200–1,500 bytes (video stream)'
             },
             'attack': {
                 'Packet Rate': '18 Mbps spike (5x normal)',
-                'Protocol ⓘ': 'TCP — unexpected for camera',
+                'Protocol': 'TCP — unexpected for camera',
                 'Destination': 'Unknown overseas IP',
                 'External Connections': 'Outbound data exfiltration',
                 'Active Hours': 'Spike at 2am outside normal ops',
-                'Avg Packet Size ⓘ': 'Large encrypted payload >8,000 bytes'
+                'Avg Packet Size': 'Large encrypted payload >8,000 bytes'
             },
             'threat': 'Data Exfiltration — patient/employee data sent to attacker server'
         },
@@ -1206,19 +1217,19 @@ elif 'Device Baselines' in page:
             'name': '🔐 Smart Door Lock (Access Control)',
             'normal': {
                 'Packet Rate': '10–15 packets per hour',
-                'Protocol ⓘ': 'TCP — authentication protocol',
+                'Protocol': 'TCP — authentication protocol',
                 'Destination': '2 known internal auth servers',
                 'External Connections': 'None',
                 'Active Hours': '8am–6pm business hours only',
-                'Avg Packet Size ⓘ': '45 bytes per packet'
+                'Avg Packet Size': '45 bytes per packet'
             },
             'attack': {
                 'Packet Rate': '1,000+ packets per minute (SYN flood)',
-                'Protocol ⓘ': 'TCP SYN — 0x0002 flag dominant',
+                'Protocol': 'TCP SYN — 0x0002 flag dominant',
                 'Destination': 'Unknown IP scanning 47 internal hosts',
                 'External Connections': 'Lateral movement across network',
                 'Active Hours': '2am — completely outside business hours',
-                'Avg Packet Size ⓘ': '800+ bytes — malicious payload'
+                'Avg Packet Size': '800+ bytes — malicious payload'
             },
             'threat': 'Lateral Movement — attacker using door lock to traverse internal network'
         },
@@ -1226,19 +1237,19 @@ elif 'Device Baselines' in page:
             'name': '🌡️ Smart Sensor (Environment Monitor)',
             'normal': {
                 'Packet Rate': '1 report every 5 minutes',
-                'Protocol ⓘ': 'MQTT — lightweight IoT protocol',
+                'Protocol': 'MQTT — lightweight IoT protocol',
                 'Destination': '1 MQTT broker server',
                 'External Connections': 'None',
                 'Active Hours': 'Continuous low-frequency reporting',
-                'Avg Packet Size ⓘ': '20–30 bytes per report'
+                'Avg Packet Size': '20–30 bytes per report'
             },
             'attack': {
                 'Packet Rate': '1 packet every 2 seconds (150x normal)',
-                'Protocol ⓘ': 'TCP — protocol shift detected',
+                'Protocol': 'TCP — protocol shift detected',
                 'Destination': 'Multiple unknown C&C destinations',
                 'External Connections': 'Botnet C&C communication',
                 'Active Hours': 'Sustained unusual activity',
-                'Avg Packet Size ⓘ': '800 bytes (30x larger than normal)'
+                'Avg Packet Size': '800 bytes (30x larger than normal)'
             },
             'threat': 'Botnet Recruitment — sensor compromised and controlled by attacker'
         },
