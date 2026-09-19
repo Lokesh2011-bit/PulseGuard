@@ -363,7 +363,7 @@ TOOLTIP = {
     'ip.src':            'ⓘ Source IP: IP address of the sending machine',
     'ip.dst':            'ⓘ Destination IP: IP address of the receiving machine',
     'rf_pred':           'ⓘ Random Forest Prediction: Supervised ML output (1=Malicious, 0=Benign)',
-    'label':             'ⓘ Label: Ground truth traffic classification from IoT-23 dataset',
+    'label':             'ⓘ Label: Ensemble classification (Random Forest AND XGBoost)',
 }
 
 # ── DATA LOADING ──────────────────────────────────────────────────────────────
