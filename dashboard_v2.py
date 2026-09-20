@@ -1102,7 +1102,7 @@ elif 'Model Comparison' in page:
         'Algorithm':          ['Isolation Forest', 'Local Outlier Factor', 'Random Forest', 'XGBoost'],
         'Type':               ['Unsupervised', 'Unsupervised', 'Supervised', 'Supervised'],
         'Labels Required?':   ['No', 'No', 'Yes', 'Yes'],
-        'F1 Score':           ['see report', 'see report', 'see report', 'see report'],
+        'F1 Score':           ['37.8%', '28.0%', '94.0%', '94.9%'],
         'Speed':              ['Fast', 'Slow', 'Fast', 'Very Fast'],
         'Feature Importance': ['❌ No', '❌ No', '✅ Yes', '✅ Yes'],
         'Stage':              ['Base', 'Base', 'Supervised', 'Supervised'],
@@ -1181,6 +1181,44 @@ elif 'Model Comparison' in page:
             st.info("Reference prediction columns not found in results.csv.")
     else:
         st.info("No reference results available for evaluation.")
+
+    # ── Confusion matrix (live, ensemble vs ground truth) ──
+    st.markdown("---")
+    st.markdown("#### Confusion Matrix: Ensemble (RF AND XGBoost)",
+                help="True label vs. the ensemble's decision on the held-out test flows.")
+    if _ref is not None and 'label_enc' in _ref.columns and 'ensemble_pred' in _ref.columns:
+        from sklearn.metrics import (accuracy_score as _acc, precision_score as _prec,
+                                     recall_score as _rec, f1_score as _f1c)
+        _yt = _ref['label_enc'].values
+        _yp = _ref['ensemble_pred'].values
+        _cm = confusion_matrix(_yt, _yp, labels=[0, 1])
+        _tn, _fp, _fn, _tp = [int(v) for v in _cm.ravel()]
+        _n = _tn + _fp + _fn + _tp
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Accuracy",  f"{_acc(_yt, _yp)*100:.2f}%")
+        m2.metric("Precision", f"{_prec(_yt, _yp)*100:.2f}%")
+        m3.metric("Recall",    f"{_rec(_yt, _yp)*100:.2f}%", help="Share of real attacks the ensemble caught")
+        m4.metric("F1 Score",  f"{_f1c(_yt, _yp)*100:.2f}%")
+
+        _text = [
+            [f"<b>{_tn:,}</b><br>{_tn/_n*100:.1f}%<br>Correctly cleared",
+             f"<b>{_fp:,}</b><br>{_fp/_n*100:.1f}%<br>False alarms"],
+            [f"<b>{_fn:,}</b><br>{_fn/_n*100:.1f}%<br>Missed attacks",
+             f"<b>{_tp:,}</b><br>{_tp/_n*100:.1f}%<br>Attacks caught"],
+        ]
+        _fig_cm = go.Figure(go.Heatmap(
+            z=[[1, 0], [0, 1]],
+            x=['Predicted Benign', 'Predicted Malicious'],
+            y=['Actual Benign', 'Actual Malicious'],
+            text=_text, texttemplate="%{text}",
+            textfont=dict(size=15, color='#E9EBEF'),
+            colorscale=[[0, '#5B2A2A'], [1, '#1E5A43']],
+            showscale=False, xgap=4, ygap=4, hoverinfo='skip'))
+        _fig_cm.update_layout(**PLOT_LAYOUT, height=420)
+        _fig_cm.update_yaxes(autorange='reversed')
+        st.plotly_chart(_fig_cm, width='stretch')
+        st.caption(f"Computed live on {_n:,} held-out test flows against ground-truth labels.")
 
     st.markdown("---")
 
