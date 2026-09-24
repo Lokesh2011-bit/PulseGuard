@@ -38,20 +38,7 @@ st.set_page_config(
 )
 
 # ── ROLE-BASED ACCESS CONTROL (RBAC) ───────────────────────────────────────────
-# Credentials now come from .streamlit/secrets.toml, never hardcoded in source.
-USERS = {
-    username: {
-        "password": hashlib.sha256(info["password"].encode()).hexdigest(),
-        "role": info["role"],
-    }
-    for username, info in st.secrets["users"].items()
-}
-
-def check_login(username, password):
-    user = USERS.get(username)
-    if user and user["password"] == hashlib.sha256(password.encode()).hexdigest():
-        return user["role"]
-    return None
+import pg_auth  # accounts, bcrypt passwords and MFA now live in Supabase (see pg_auth.py)
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
@@ -135,24 +122,14 @@ if not st.session_state.authenticated:
         unsafe_allow_html=True,
     )
 
-    with st.form("login_form"):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Log In")
-        if submitted:
-            role = check_login(username, password)
-            if role:
-                st.session_state.authenticated = True
-                st.session_state.role = role
-                st.session_state.username = username
-                st.rerun()
-            else:
-                st.error("Incorrect username or password")
+    pg_auth.render_login_form()
     st.markdown(
         '<div class="pg-login-hint">Role-based access · Admin &middot; Analyst &middot; Read-only</div>',
         unsafe_allow_html=True,
     )
     st.stop()
+
+pg_auth.session_guard()
 
 # ── THEME CSS ─────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -416,11 +393,12 @@ with st.sidebar:
         st.session_state.pop('uploaded_filename', None)
         st.rerun()
 
+    pg_auth.render_change_password()
     st.markdown("---")
 
     ROLE_PAGES = {
         "Admin":     ["Overview Dashboard", "Upload & Detect", "Model Comparison",
-                      "Device Baselines", "Compliance Report"],
+                      "Device Baselines", "Compliance Report", "User Management"],
         "Analyst":   ["Overview Dashboard", "Upload & Detect", "Model Comparison",
                       "Device Baselines"],
         "Read-only": ["Overview Dashboard", "Device Baselines"],
@@ -1301,6 +1279,9 @@ elif 'Device Baselines' in page:
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 6 — COMPLIANCE REPORT
 # ══════════════════════════════════════════════════════════════════════════════
+elif 'User Management' in page:
+    pg_auth.render_user_management()
+
 elif 'Compliance Report' in page:
     if st.session_state.role != "Admin":
         st.error("🔒 This page is restricted to Admin accounts.")

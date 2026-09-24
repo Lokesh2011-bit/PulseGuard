@@ -5,3 +5,7 @@ plotly
 scikit-learn
 joblib
 xgboost
+bcrypt
+pyotp
+qrcode[pil]
+requests
