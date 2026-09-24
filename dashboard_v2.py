@@ -486,7 +486,8 @@ with st.sidebar:
         <summary><img src="data:image/png;base64,{_LOGO_B64}" alt="PulseGuard"></summary>
         <div class="pg-credits-body">
         PulseGuard v2.0 · IoT Anomaly Detection<br><br>
-        Built by Lokesh, Mani, Navoda, Naveen &amp; Kishore<br>
+        Developed by Lokesh Adithya Murugan<br>
+        Team: Mani, Navoda, Naveen &amp; Kishore<br>
         Client: Ahmed Jawad Khan<br>
         MN692 Capstone · Supervisor: Dr. Anies Hannawati
         </div>
