@@ -31,7 +31,7 @@ _LOGO_B64 = __import__('base64').b64encode(
 
 # ── PAGE CONFIG ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="IoT Anomaly Detection | APM",
+    page_title="PulseGuard | IoT Anomaly Detection",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -427,7 +427,8 @@ with st.sidebar:
     }
 
     st.markdown("<div class='info-label'>Data Source</div>", unsafe_allow_html=True)
-    data_source = st.selectbox("Select Data Source", ["IoT-23 Dataset"])
+    data_source = "IoT-23 Dataset"
+    st.markdown("<div style='font-size:13px;color:#E9EBEF;'>Default dataset loaded</div><div style='font-size:11px;color:#8B93A1;'>IoT-23 · Stratosphere Lab, CTU Prague</div>", unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("<div class='info-label'>System Status</div>", unsafe_allow_html=True)
@@ -486,8 +487,8 @@ with st.sidebar:
         <div class="pg-credits-body">
         PulseGuard v2.0 · IoT Anomaly Detection<br><br>
         Built by Lokesh, Mani, Navoda, Naveen &amp; Kishore<br>
-        Client: APM (Advanced Personnel Management)<br>
-        MN692 Capstone · Supervisor: Ahmed Jawad Khan
+        Client: Ahmed Jawad Khan<br>
+        MN692 Capstone · Supervisor: Dr. Anies Hannawati
         </div>
         </details>''',
         unsafe_allow_html=True
@@ -730,7 +731,7 @@ COL_AMB = '#F59E0B'
 # ══════════════════════════════════════════════════════════════════════════════
 if 'Overview Dashboard' in page:
     st.markdown("## IoT Network Anomaly Detection System")
-    st.markdown("<div style='color:#8B93A1;font-size:13px;margin-bottom:20px;'>Client: APM (Advanced Personnel Management)</div>", unsafe_allow_html=True)
+    st.markdown("<div style='color:#8B93A1;font-size:13px;margin-bottom:20px;'>Client: Ahmed Jawad Khan</div>", unsafe_allow_html=True)
 
     if "uploaded_results" in st.session_state:
         df = st.session_state["uploaded_results"]
@@ -909,25 +910,14 @@ if 'Overview Dashboard' in page:
                for c in shown_df.columns if c in col_help}
     st.dataframe(shown_df, width='stretch', height=320, column_config=col_cfg)
 
-    with st.expander("What each column means"):
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**SEVERITY** — Risk level: 🔴 Critical (<-0.65) · 🟠 High (<-0.50) · 🟡 Medium")
-            st.markdown("**DURATION** — How long the network connection lasted in seconds")
-            st.markdown("**ORIG BYTES** — Bytes sent FROM the IoT device to destination")
-            st.markdown("**RESP BYTES** — Bytes received BY the IoT device from destination")
-        with col2:
-            st.markdown("**PROTO** — Network protocol, encoded: 0 = ICMP, 1 = TCP, 2 = UDP")
-            st.markdown("**CONN STATE** — Zeek connection state, encoded 0-9 (8 = SF normal, 4 = S0 no reply, 1 = REJ rejected)")
-            st.markdown("**LABEL** — Final classification: Malicious or Benign")
-            st.markdown("**ANOMALY SCORE** — Lower = more suspicious. Isolation Forest output score.")
+    st.caption("Severity: 🔴 Critical (score below -0.65) · 🟠 High (below -0.50) · 🟡 Medium (otherwise). Hover a column header for what it means.")
 
     if st.session_state.role in ("Admin", "Analyst"):
         dl_df = df[df['ensemble_pred'] == 1][available].copy() if 'ensemble_pred' in df.columns else df
         st.download_button(
             label="📄 Download NDB Compliance Report (CSV)",
             data=dl_df.to_csv(index=False).encode('utf-8'),
-            file_name=f"APM_NDB_Anomaly_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+            file_name=f"PulseGuard_NDB_Anomaly_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
             mime="text/csv",
             help="Downloads anomaly log formatted for Australian Privacy Act 1988 NDB scheme reporting"
         )
@@ -1026,13 +1016,14 @@ elif 'Upload & Detect' in page:
         show_cols = ['duration', 'orig_bytes', 'resp_bytes', 'proto', 'conn_state', 'label', 'anomaly_score']
         show_cols = [c for c in show_cols if c in results.columns]
         anom_df = results[results['ensemble_pred'] == 1][show_cols].sort_values('anomaly_score').head(50)
-        st.dataframe(anom_df, width='stretch', height=320)
+        st.dataframe(anom_df, width='stretch', height=320,
+                     column_config={c: st.column_config.Column(help=tip(c)) for c in anom_df.columns if c in TOOLTIP})
 
         if st.session_state.role in ("Admin", "Analyst"):
             st.download_button(
                 label="📄 Download Results (CSV)",
                 data=results[show_cols].to_csv(index=False).encode('utf-8'),
-                file_name=f"APM_Upload_Analysis_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                file_name=f"PulseGuard_Upload_Analysis_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                 mime="text/csv"
             )
         else:
@@ -1227,7 +1218,7 @@ elif 'Model Comparison' in page:
 # ══════════════════════════════════════════════════════════════════════════════
 elif 'Device Baselines' in page:
     st.markdown("## IoT Device Baseline Profiles")
-    st.markdown("<div style='color:#8B93A1;font-size:13px;'>Normal behaviour benchmarks for APM's IoT device types — defined by the PulseGuard team</div>", unsafe_allow_html=True)
+    st.markdown("<div style='color:#8B93A1;font-size:13px;'>Normal behaviour benchmarks for common IoT device types — defined by the PulseGuard team</div>", unsafe_allow_html=True)
     st.markdown("---")
 
     devices = [
@@ -1323,7 +1314,7 @@ elif 'Compliance Report' in page:
         <div class='info-card'>
             <div class='info-label'>Report Details</div>
             <div class='info-value'>
-            <b>Organisation:</b> APM Advanced Personnel Management<br>
+            <b>Prepared by:</b> PulseGuard team (MIT MN692)<br>
             <b>System:</b> IoT Network Anomaly Detection System<br>
             <b>Framework:</b> Australian Privacy Act 1988 (Cth)<br>
             <b>Scheme:</b> Notifiable Data Breaches (NDB)<br>
@@ -1371,7 +1362,7 @@ elif 'Compliance Report' in page:
         st.download_button(
             label="📄 Download Full NDB Compliance Report (CSV)",
             data=csv_report,
-            file_name=f"APM_NDB_Compliance_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+            file_name=f"PulseGuard_NDB_Compliance_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
             mime="text/csv"
         )
 
